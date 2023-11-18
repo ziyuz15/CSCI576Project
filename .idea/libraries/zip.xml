@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="zip">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/Assignment1_starter_code/ImageDisplay_C++(vscode)/dependency/wxWidgets/tests/fuzz/corpus/zip/test.zip!/" />
+      <root url="jar://$PROJECT_DIR$/Assignment1_starter_code/ImageDisplay_C++(vscode)/dependency/wxWidgets/tests/fuzz/corpus/zip/doc.zip!/" />
+      <root url="jar://$PROJECT_DIR$/Assignment1_starter_code/ImageDisplay_C++(vscode)/dependency/wxWidgets/tests/fuzz/corpus/zip/pages.zip!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

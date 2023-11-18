@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="test1">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/Assignment1_starter_code/ImageDisplay_C++(vscode)/dependency/wxWidgets/utils/helpview/src/test.zip!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
