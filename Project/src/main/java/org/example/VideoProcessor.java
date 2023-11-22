@@ -6,6 +6,7 @@ import java.io.IOException;
 import javax.swing.*;
 import java.awt.FlowLayout;
 import java.util.LinkedList;
+import java.util.Deque;
 import javax.imageio.ImageIO;
 
 import org.bytedeco.javacv.*;
@@ -17,7 +18,7 @@ import org.bytedeco.ffmpeg.*;
  * <p>
  * I suggest you to create you own class for different signal processing
  * functions that you are in charge of and call your functions within processVideo function.
- *
+ * </p>
  * @author pan
  */
 public class VideoProcessor {
@@ -61,49 +62,47 @@ public class VideoProcessor {
      * The function is used for extraing and excuting the processing the frames of Video and Audio from MP4 files.
      * @param path
      */
-//    public static void processVideo(String path) {
-//
-//        try (FFmpegFrameGrabber frameGrabber = new FFmpegFrameGrabber(path)) {
-//            Frame currentFrame, nextFrame, audioFrame = new Frame();
+//    public static void processVideo(String path){
+//        Deque<Frame> frameQueue = new LinkedList<>();
+//        try( FFmpegFrameGrabber frameGrabber = new FFmpegFrameGrabber(path)) {
 //
 //            frameGrabber.start();
-//            currentFrame = frameGrabber.grabImage();
+//            Java2DFrameConverter converter = new Java2DFrameConverter();
+//            Frame frame = new Frame();
+//            frame = frameGrabber.grabImage();
+//            Frame previousFrame = new Frame();
+//            Frame currentFrame = new Frame();
 //            int n = 0;
-//            while ((nextFrame  = frameGrabber.grabImage()) != null ||
-//                    (audioFrame = frameGrabber.grabFrame(true, false, false, false)) != null) {
-//                Java2DFrameConverter converter = new Java2DFrameConverter();
-//                BufferedImage currentImage = converter.convert(currentFrame);
-//                BufferedImage nextImage = converter.convert(nextFrame);
-//                //read the video frame and store the rgb signals for example
-//                //processFrame(currentImage);
-//                //process frame with shot boundary details, color and motion
-//                //example:
-//                //proecss the rgb signals and create a digital signature
-//
-//                if (currentImage != null && nextImage != null) {
-//                    //processFrame(currentImage); // 处理当前帧
-//                    ShotBoundaryDetails.combinedDiff(currentImage, nextImage, 0, 0);
-//
+//            while (frame != null) {
+//                frameQueue.addLast(frame);
+//                if(frameQueue.size() > 3){
+//                    frameQueue.removeFirst();
 //                }
-//                //read the audio frame's samples
-//                if(audioFrame.samples != null){
-//                    //read and process audio frame
-//                }
-//                try {
+//                Frame frame1 = new Frame();
+//                frame1 = frameQueue.getFirst();
+//                Frame frame2 = new Frame();
+//                frame2 = frameQueue.getLast();
 //
-//                    ImageIO.write(currentImage, "png", new File("video_tmp\\"+n+".png"));
-//                    ImageIO.write(nextImage, "png", new File("video_tmp\\"+n+1+".png"));
-//                    n++;
-//                } catch (IOException e) {
-//                    e.printStackTrace();
+//                BufferedImage buff1 = converter.convert(frame1);
+//                BufferedImage buff2 = converter.convert(frame2);
+//
+//                if(buff2 != null){
+//                    System.out.println("Processing frame: " + n);
+//                    System.out.println("RGB of previousFrame frame first pixel: " + buff1.getRGB(0, 0));
+//                    ImageIO.write(buff1, "png", new File("video_tmp\\" + n + ".png"));
+//                    n = n + 1;
+//                    System.out.println("Processing frame: " + n);
+//                    System.out.println("RGB of current frame first pixel: " + buff2.getRGB(0, 0));
+//                    ImageIO.write(buff2, "png", new File("video_tmp\\" + n + ".png"));
+//                    System.out.println(" ");
 //                }
-//                currentFrame = nextFrame;
+//
+//                frame = frameGrabber.grabImage();
+//
 //            }
-//             System.out.println("num: "+ n);
 //            frameGrabber.stop();
-//        } catch (Exception e) {
-//            // TODO: handle exception
-//            e.printStackTrace();
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
 //        }
 //    }
 //    public static void processVideo(String path) {
@@ -111,41 +110,32 @@ public class VideoProcessor {
 //            frameGrabber.start();
 //
 //            Java2DFrameConverter converter = new Java2DFrameConverter();
-//            Frame currentFrame = frameGrabber.grabImage();
-//            Frame nextFrame;
-//            int n = 0;
-//            int skip = 0;
-//            while (currentFrame != null) {
+//            Frame currentFrame = frameGrabber.grabFrame();
+//            Frame nextFrame = null;
+//            int c = 0;
+//            int n = 1;
+//            while ((nextFrame = frameGrabber.grabFrame()) != null) {
 //                BufferedImage currentImage = converter.convert(currentFrame);
-//                BufferedImage nextImage = null;
-//                // 处理当前帧...
-//                if (currentImage != null) {
-//                    ImageIO.write(currentImage, "png", new File("video_tmp\\" + n + ".png"));
+//                BufferedImage nextImage = converter.convert(nextFrame);
+//                // 处理并保存当前帧
+//                if (nextImage != null) {
+//                    System.out.println("Processing current frame: " + c);
+//                    System.out.println("RGB of current frame first pixel: " + currentImage.getRGB(0, 0));
+//                    ImageIO.write(currentImage, "png", new File("video_tmp\\" + c + ".png"));
+//                    System.out.println("Processing next frame: " + n);
+//                    System.out.println("RGB of next frame first pixel: " + nextImage.getRGB(0, 0));
+//                    ImageIO.write(nextImage, "png", new File("video_tmp\\" + n + ".png"));
+//                    System.out.println(" ");
+//                    c++;
+//                    n++;
 //                }
 //
-//                nextFrame = frameGrabber.grabImage(); // 获取下一帧
-//                if (nextFrame != null) {
-//                    nextImage = converter.convert(nextFrame);
-//                    // 处理下一帧...
-//                    ImageIO.write(nextImage, "png", new File("video_tmp\\" + (n + 1) + ".png"));
-//                }
-//                if (currentImage != null && nextImage != null) {
-//                    //processFrame(currentImage); // 处理当前帧
-//                   if(skip >= 4){
-//                       ShotBoundaryDetails.combinedDiff(currentImage, nextImage, 0, 0);
-//                       skip = 0;
-//                   }
-//                   else{
-//                       skip++;
-//                       continue;
-//                   }
-//                }
-//                System.out.println("Processing frame: " + n);
-//                System.out.println("RGB of current frame first pixel: " + currentImage.getRGB(0, 0));
-//                System.out.println("RGB of next frame first pixel: " + nextImage.getRGB(0, 0));
-//                // 准备下次迭代
-//                currentFrame = nextFrame;
-//                n++;
+//                // 获取并准备下一帧
+//                Frame tmpFrame = nextFrame.clone();
+//                currentFrame = tmpFrame;
+////                if(currentFrame.keyFrame){
+////                    System.out.println(currentFrame.timestamp);
+////                }
 //            }
 //
 //            System.out.println("num: " + n);
@@ -157,42 +147,88 @@ public class VideoProcessor {
     public static void processVideo(String path) {
         try (FFmpegFrameGrabber frameGrabber = new FFmpegFrameGrabber(path)) {
             frameGrabber.start();
+            FFmpegFrameGrabber frameGrabber2 = new FFmpegFrameGrabber(path);
+            frameGrabber2.start();
 
             Java2DFrameConverter converter = new Java2DFrameConverter();
-            LinkedList<Frame> frameWindow = new LinkedList<>();
-            final int WINDOW_SIZE = 5; // 滑动窗口大小
+            Java2DFrameConverter converter2 = new Java2DFrameConverter();
+            Frame previousFrame = new Frame();
+            Frame currentFrame = frameGrabber.grabImage();
+            BufferedImage previousImage = null;
+            BufferedImage currentImage = converter.getBufferedImage(currentFrame);
+            int frameCount = 0;
+            int p = 0;
+            int c = 1;
+            while ((currentFrame = frameGrabber.grabImage()) != null){
+                previousFrame = frameGrabber2.grabImage();
+                previousImage = converter2.getBufferedImage(previousFrame);
+                currentImage = converter.getBufferedImage(currentFrame);
+                c++;
+                p++;
+                if(currentImage != null && currentFrame.keyFrame){
+//                    System.out.println("Processing previous frame: " + p);
+//                    System.out.println("RGB of previous frame first pixel: " + previousImage.getRGB(0, 0));
+//                    ImageIO.write(previousImage, "png", new File("video_tmp\\" + c + ".png"));
+//                    System.out.println("Processing current frame: " + c);
+//                    System.out.println("RGB of current frame first pixel: " + currentImage.getRGB(0, 0));
+//                    ImageIO.write(currentImage, "png", new File("video_tmp\\" + c + ".png"));
+//                    System.out.println(" ");
 
-            Frame frame;
-            while ((frame = frameGrabber.grabImage()) != null) {
-                frameWindow.add(frame);
-                System.out.println(frameWindow.size());
-                // 当窗口满时进行处理
-                if (frameWindow.size() == WINDOW_SIZE) {
-                    // 分析帧窗口中的帧
-                    processFrameWindow(frameWindow, converter);
-
-                    // 移除最旧的帧，为下一帧留空间
-                    frameWindow.removeFirst();
+                    if(ShotBoundaryDetails.combinedDiff(previousImage, currentImage, 0.7 ,0.3) == true){
+                        System.out.println("Processing previous frame: " + p);
+                        System.out.println("Processing current frame: " + c);
+                    }
                 }
+                frameCount++;
             }
-
+            System.out.println("Total frames processed: " + frameCount);
             frameGrabber.stop();
+            frameGrabber2.stop();
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private static void processFrameWindow(LinkedList<Frame> frameWindow, Java2DFrameConverter converter) {
-        // 在这里实现你的帧窗口分析逻辑
-        // 例如，比较第一帧和最后一帧的差异
-        BufferedImage firstImage = converter.convert(frameWindow.getFirst());
-        BufferedImage lastImage = converter.convert(frameWindow.getLast());
-        System.out.println("RGB of current frame firstImage pixel: " + firstImage.getRGB(10, 10));
-        System.out.println("RGB of next frame lastImage pixel: " + lastImage.getRGB(10, 10));
-        System.out.println(" ");
-        ShotBoundaryDetails.combinedDiff(firstImage, lastImage, 0, 0);
-        // 根据差异进行进一步处理
-    }
+
+//    public static void processVideo(String path) {
+//        try (FFmpegFrameGrabber frameGrabber = new FFmpegFrameGrabber(path)) {
+//            frameGrabber.start();
+//
+//            Java2DFrameConverter converter = new Java2DFrameConverter();
+//            LinkedList<Frame> frameWindow = new LinkedList<>();
+//            final int WINDOW_SIZE = 5; // 滑动窗口大小
+//
+//            Frame frame;
+//            while ((frame = frameGrabber.grabImage()) != null) {
+//                frameWindow.add(frame);
+//                System.out.println(frameWindow.size());
+//                // 当窗口满时进行处理
+//                if (frameWindow.size() == WINDOW_SIZE) {
+//                    // 分析帧窗口中的帧
+//                    processFrameWindow(frameWindow, converter);
+//
+//                    // 移除最旧的帧，为下一帧留空间
+//                    frameWindow.removeFirst();
+//                }
+//            }
+//
+//            frameGrabber.stop();
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//    }
+//
+//    private static void processFrameWindow(LinkedList<Frame> frameWindow, Java2DFrameConverter converter) {
+//        // 在这里实现你的帧窗口分析逻辑
+//        // 例如，比较第一帧和最后一帧的差异
+//        BufferedImage firstImage = converter.convert(frameWindow.getFirst());
+//        BufferedImage lastImage = converter.convert(frameWindow.getLast());
+//        System.out.println("RGB of current frame firstImage pixel: " + firstImage.getRGB(10, 10));
+//        System.out.println("RGB of next frame lastImage pixel: " + lastImage.getRGB(10, 10));
+//        System.out.println(" ");
+//        ShotBoundaryDetails.combinedDiff(firstImage, lastImage, 0, 0);
+//        // 根据差异进行进一步处理
+//    }
 
 }
 

@@ -34,7 +34,7 @@ public class ShotBoundaryDetails {
             }
         }
 
-        return (double)differentPixels / totalPixels * 100;
+        return (double)differentPixels / totalPixels;
     }
     public static void HSV(BufferedImage buff, int[] frequencyH, int[] frequencyS, int[] frequencyV){
         int width = buff.getWidth();
@@ -80,6 +80,11 @@ public class ShotBoundaryDetails {
     public static double hsvDiff(BufferedImage buff1, BufferedImage buff2){
         int[] frequencyH1 = new int[361], frequencyS1 = new int[101], frequencyV1 = new int[101];
         int[] frequencyH2 = new int[361], frequencyS2 = new int[101], frequencyV2 = new int[101];
+        int width = buff1.getWidth();
+        int height = buff1.getHeight();
+
+        double MaxDiff = calculateMaxHsvDiff(width*height);
+        double normalizedHsvDiff = 0;
 
         HSV(buff1, frequencyH1, frequencyS1, frequencyV1);
         HSV(buff2, frequencyH2, frequencyS2, frequencyV2);
@@ -92,21 +97,49 @@ public class ShotBoundaryDetails {
             distance += Math.pow(frequencyV1[i] - frequencyV2[i], 2);
         }
         distance = Math.sqrt(distance);
-
-
+        normalizedHsvDiff = distance / MaxDiff;
+        if(normalizedHsvDiff>1){
+            normalizedHsvDiff = 1;
+        }
         // double threshold = 0.5;
 
-        return distance;
+        return normalizedHsvDiff;
     }
-    public static void combinedDiff(BufferedImage buff1, BufferedImage buff2, double w1, double w2){
-        double pixelxDiffScore = pixelxDiff(buff1, buff2);
-        double hsvDiffSocre = hsvDiff(buff1, buff2);
 
+    public static double calculateMaxHsvDiff(int totalPixels) {
+//        double maxDiffH = 361 * Math.pow(totalPixels, 2);
+//        double maxDiffSV = 2 * 101 * Math.pow(totalPixels, 2);
+//        return Math.sqrt(maxDiffH + maxDiffSV);
+        int N = totalPixels;
+
+        // 计算最大卡方距离
+        // 对于H通道（360个可能值），每个值的最大差异是N
+        // 对于S和V通道（各100个可能值），每个值的最大差异也是N
+        double maxDiffH = 360 * N;
+        double maxDiffSV = 2 * 100 * N;  // S和V通道
+
+        // 总的最大差异是这些值的总和
+        return 100000 ;
+    }
+
+    public static boolean combinedDiff(BufferedImage buff1, BufferedImage buff2, double w1, double w2){
+        double pixelxDiffScore = pixelxDiff(buff1, buff2);
+        double hsvDiffSocre = hsvDiff(buff1, buff2) ;
+        double weightedScore = w1 * pixelxDiffScore + w2 * hsvDiffSocre;
 //        System.out.println("pixel: "+ pixelxDiffScore);
 //        System.out.println("hsv: "+ hsvDiffSocre);
 //        if(pixelxDiffScore > 0 || hsvDiffSocre > 0){
 //            System.out.println("pixel: "+ pixelxDiffScore);
 //            System.out.println("hsv: "+ hsvDiffSocre);
+//            System.out.println("weightedScore: "+ weightedScore);
 //        }
+        if(weightedScore >= 0.75){
+            System.out.println("pixel: "+ pixelxDiffScore);
+            System.out.println("hsv: "+ hsvDiffSocre);
+            System.out.println("weightedScore: "+ weightedScore);
+            System.out.println(" ");
+            return true;
+        }
+        return  false;
     }
 }
