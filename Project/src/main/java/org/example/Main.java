@@ -1,6 +1,6 @@
 package org.example;
 
-import org.bytedeco.javacv.FFmpegFrameGrabber;
+
 
 public class Main {
     public static void main(String[] args) {

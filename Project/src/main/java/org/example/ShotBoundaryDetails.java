@@ -3,7 +3,7 @@ package org.example;
 import java.awt.image.BufferedImage;
 
 public class ShotBoundaryDetails {
-    static final double threshold = 0.1;
+    static final double threshold = 100;
 
     public static double pixelxDiff(BufferedImage buff1, BufferedImage buff2){
         int width = buff1.getWidth();
@@ -28,7 +28,7 @@ public class ShotBoundaryDetails {
 //                    System.out.println("rgb1: "+ rgb1 + "rgb2: " + rgb2);
 //                }
                 if(different >= threshold){
-
+//                    System.out.println("different: "+ different);
                     differentPixels++;
                 }
             }
