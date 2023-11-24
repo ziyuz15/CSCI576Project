@@ -177,7 +177,7 @@ public class VideoProcessor {
                 currentImage = converter.getBufferedImage(currentFrame);
                 c++;
                 p++;
-                if(currentImage != null && currentFrame.keyFrame && ShotBoundaryDetails.combinedDiff(previousImage, currentImage, 0.7, 0.3)){
+                if(currentImage != null && currentFrame.keyFrame && ShotBoundaryDetails.combinedDiff(previousImage, currentImage, 0.7, 0.3, path)){
 //                    System.out.println("Processing previous frame: " + p);
 //                    System.out.println("RGB of previous frame first pixel: " + previousImage.getRGB(0, 0));
 //                    ImageIO.write(previousImage, "png", new File("video_tmp\\" + c + ".png"));
@@ -185,13 +185,11 @@ public class VideoProcessor {
 //                    System.out.println("RGB of current frame first pixel: " + currentImage.getRGB(0, 0));
 //                    ImageIO.write(currentImage, "png", new File("video_tmp\\" + c + ".png"));
 //                    System.out.println(" ");
+                    System.out.println("Processing previous frame: " + p);
+                    System.out.println("Processing current frame: " + c);
+                    ImageIO.write(currentImage, "png", new File("video_tmp\\" + c + ".png"));
+                    shots++;
 
-                    if(ShotBoundaryDetails.combinedDiff(previousImage, currentImage, 0.7 ,0.3) == true){
-                        System.out.println("Processing previous frame: " + p);
-                        System.out.println("Processing current frame: " + c);
-                        ImageIO.write(currentImage, "png", new File("video_tmp\\" + c + ".png"));
-                        shots++;
-                    }
                 }
                 frameCount++;
             }
@@ -199,7 +197,7 @@ public class VideoProcessor {
             currentFrame = frameGrabber2.grabImage();
             if (currentFrame != null) {
                 currentImage = converter.getBufferedImage(currentFrame);
-                if (currentImage != null && currentFrame.keyFrame && ShotBoundaryDetails.combinedDiff(previousImage, currentImage, 0.7, 0.3)) {
+                if (currentImage != null && currentFrame.keyFrame && ShotBoundaryDetails.combinedDiff(previousImage, currentImage, 0.7, 0.3, path)) {
                     System.out.println("Processing frame: " + frameCount);
                     shots++;
                 }

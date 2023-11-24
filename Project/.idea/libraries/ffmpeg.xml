@@ -8,6 +8,7 @@
       <root url="jar://$PROJECT_DIR$/opencv-windows-x86_64.jar!/" />
       <root url="jar://$PROJECT_DIR$/opencv.jar!/" />
       <root url="jar://$PROJECT_DIR$/openblas-windows-x86_64.jar!/" />
+      <root url="jar://$PROJECT_DIR$/JTransforms-3.1-with-dependencies.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />

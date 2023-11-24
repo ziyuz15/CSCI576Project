@@ -1,10 +1,26 @@
 package org.example;
 
 import java.awt.image.BufferedImage;
+import java.io.FileWriter;
+import java.io.IOException;
 
 public class ShotBoundaryDetails {
     static final double threshold = 10;
-
+    public double averageH;
+    public double averageS;
+    public double averageV;
+    public int maxH;
+    public int maxS;
+    public int maxV;
+    static ShotBoundaryDetails ShotBoundaryDetails = new ShotBoundaryDetails();
+    public ShotBoundaryDetails(){
+        averageH = 0;
+        averageS = 0;
+        averageV = 0;
+        maxH = 0;
+        maxS = 0;
+        maxV = 0;
+    }
     public static double pixelxDiff(BufferedImage buff1, BufferedImage buff2){
         int width = buff1.getWidth();
         int height = buff1.getHeight();
@@ -36,9 +52,12 @@ public class ShotBoundaryDetails {
 
         return (double)differentPixels / totalPixels;
     }
-    public static void HSV(BufferedImage buff, int[] frequencyH, int[] frequencyS, int[] frequencyV){
+    public static ShotBoundaryDetails HSV(BufferedImage buff, int[] frequencyH, int[] frequencyS, int[] frequencyV){
         int width = buff.getWidth();
         int height = buff.getHeight();
+        int totalPixels = width * height;
+        ShotBoundaryDetails features = new ShotBoundaryDetails();
+
         for(int y = 0; y < height; y++){
             for(int x = 0; x < width; x++){
                 int rgb = buff.getRGB(x, y);
@@ -76,6 +95,30 @@ public class ShotBoundaryDetails {
                 frequencyV[(int) (v * 100)]++;
             }
         }
+
+        for (int i = 0; i < 361; i++) {
+            features.averageH += (double) frequencyH[i] * i;
+            if (frequencyH[i] > frequencyH[features.maxH]) {
+                features.maxH = i;
+            }
+        }
+        features.averageH /= totalPixels;
+
+        for (int i = 0; i < 101; i++) {
+            features.averageS += (double) frequencyS[i] * i;
+            if (frequencyS[i] > frequencyS[features.maxS]) {
+                features.maxS = i;
+            }
+
+            features.averageV += (double) frequencyV[i] * i;
+            if (frequencyV[i] > frequencyV[features.maxV]) {
+                features.maxV = i;
+            }
+        }
+        features.averageS /= totalPixels;
+        features.averageV /= totalPixels;
+
+        return features;
     }
     public static double hsvDiff(BufferedImage buff1, BufferedImage buff2){
         int[] frequencyH1 = new int[361], frequencyS1 = new int[101], frequencyV1 = new int[101];
@@ -86,7 +129,7 @@ public class ShotBoundaryDetails {
         double MaxDiff = calculateMaxHsvDiff(width*height);
         double normalizedHsvDiff = 0;
 
-        HSV(buff1, frequencyH1, frequencyS1, frequencyV1);
+        ShotBoundaryDetails = HSV(buff1, frequencyH1, frequencyS1, frequencyV1);
         HSV(buff2, frequencyH2, frequencyS2, frequencyV2);
         double distance = 0.0;
         for (int i = 0; i < 360; i++) {
@@ -122,10 +165,12 @@ public class ShotBoundaryDetails {
         return 100000 ;
     }
 
-    public static boolean combinedDiff(BufferedImage buff1, BufferedImage buff2, double w1, double w2){
+    public static boolean combinedDiff(BufferedImage buff1, BufferedImage buff2, double w1, double w2, String path){
         double pixelxDiffScore = pixelxDiff(buff1, buff2);
         double hsvDiffSocre = hsvDiff(buff1, buff2) ;
         double weightedScore = w1 * pixelxDiffScore + w2 * hsvDiffSocre;
+        String fileName = path.substring(path.lastIndexOf("\\") + 1);
+        String signature;
 //        System.out.println("pixel: "+ pixelxDiffScore);
 //        System.out.println("hsv: "+ hsvDiffSocre);
 //        if(pixelxDiffScore > 0 || hsvDiffSocre > 0){
@@ -138,8 +183,35 @@ public class ShotBoundaryDetails {
             System.out.println("hsv: "+ hsvDiffSocre);
             System.out.println("weightedScore: "+ weightedScore);
             System.out.println(" ");
+            signature = createSignature(ShotBoundaryDetails, pixelxDiffScore);
+            appendSceneSignatureToFile(fileName, signature, "signatures.csv");
             return true;
         }
         return  false;
     }
+
+    public static String createSignature(ShotBoundaryDetails hsvFeatures, double pixelDiff) {
+        // 将特征组合成一个字符串
+        StringBuilder signatureBuilder = new StringBuilder();
+        // 添加像素差异特征
+        signatureBuilder.append("PixelDiff:").append(pixelDiff).append(";");
+        // 添加 HSV 直方图特征
+        signatureBuilder.append("H_Avg:").append(hsvFeatures.averageH).append(";");
+        signatureBuilder.append("S_Avg:").append(hsvFeatures.averageS).append(";");
+        signatureBuilder.append("V_Avg:").append(hsvFeatures.averageV).append(";");
+        signatureBuilder.append("H_Max:").append(hsvFeatures.maxH).append(";");
+        signatureBuilder.append("S_Max:").append(hsvFeatures.maxS).append(";");
+        signatureBuilder.append("V_Max:").append(hsvFeatures.maxV);
+
+        return signatureBuilder.toString();
+    }
+
+    public static void appendSceneSignatureToFile(String videoName, String sceneSignature, String fileName) {
+        try (FileWriter writer = new FileWriter(fileName, true)) { // 使用追加模式
+            writer.write(videoName + "," + sceneSignature + "\n");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
 }
