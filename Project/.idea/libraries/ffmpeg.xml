@@ -1,0 +1,12 @@
+<component name="libraryTable">
+  <library name="ffmpeg">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/ffmpeg.jar!/" />
+      <root url="jar://$PROJECT_DIR$/ffmpeg-windows-x86_64.jar!/" />
+      <root url="jar://$PROJECT_DIR$/javacpp.jar!/" />
+      <root url="jar://$PROJECT_DIR$/javacv.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
