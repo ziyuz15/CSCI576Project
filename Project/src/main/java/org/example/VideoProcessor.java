@@ -11,8 +11,7 @@ import javax.imageio.ImageIO;
 
 import org.bytedeco.javacv.*;
 import org.bytedeco.javacv.FFmpegFrameGrabber;
-import org.bytedeco.javacpp.Pointer;
-import org.bytedeco.ffmpeg.*;
+import org.bytedeco.javacv.Java2DFrameConverter;
 import org.bytedeco.javacv.Frame;
 
 /**
@@ -107,99 +106,115 @@ public class VideoProcessor {
 //            throw new RuntimeException(e);
 //        }
 //    }
-    public static void processVideo(String path) {
-        try (FFmpegFrameGrabber frameGrabber = new FFmpegFrameGrabber(path)) {
-            frameGrabber.start();
-
-            Java2DFrameConverter converter = new Java2DFrameConverter();
-            Frame currentFrame;
-            int c = 0;
-            int n = 1;
-            BufferedImage currentImage = null;
-            BufferedImage perivousImage = null;
-
-            while ((currentFrame = frameGrabber.grabFrame()) != null) {
-                BufferedImage tempImage = converter.convert(currentFrame);
-
-                // 确保tempImage不为null
-                if (tempImage != null) {
-                    if (perivousImage == null) {
-                        // 第一次迭代，初始化perivousImage
-                        perivousImage = tempImage;
-                    } else {
-                        // 从第二次迭代开始执行此代码块
-                        currentImage = tempImage;
-
-                        // 处理当前图像
-                    if(ShotBoundaryDetails.combinedDiff(perivousImage, currentImage, 0.7 ,0.3) == true){
-                        System.out.println("Processing previous frame: " + c);
-                        System.out.println("Processing current frame: " + n);
-                    }
-
-                        // 创建currentImage的深度拷贝并存储到perivousImage中
-                        perivousImage = new BufferedImage(currentImage.getWidth(), currentImage.getHeight(), currentImage.getType());
-                        Graphics2D graphics = perivousImage.createGraphics();
-                        graphics.drawImage(currentImage, 0, 0, null);
-                        graphics.dispose();
-
-                    }
-                    c++;
-                    n++;
-                }
-            }
-
-            System.out.println("num: " + n);
-            frameGrabber.stop();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-
 //    public static void processVideo(String path) {
 //        try (FFmpegFrameGrabber frameGrabber = new FFmpegFrameGrabber(path)) {
 //            frameGrabber.start();
-//            FFmpegFrameGrabber frameGrabber2 = new FFmpegFrameGrabber(path);
-//            frameGrabber2.start();
 //
 //            Java2DFrameConverter converter = new Java2DFrameConverter();
-//            Java2DFrameConverter converter2 = new Java2DFrameConverter();
-//            Frame previousFrame = new Frame();
-//            Frame currentFrame = frameGrabber.grabImage();
-//            BufferedImage previousImage = null;
-//            BufferedImage currentImage = converter.getBufferedImage(currentFrame);
-//            int frameCount = 0;
-//            int p = 0;
-//            int c = 1;
-//            while ((currentFrame = frameGrabber.grabImage()) != null){
-//                previousFrame = frameGrabber2.grabImage();
-//                previousImage = converter2.getBufferedImage(previousFrame);
-//                currentImage = converter.getBufferedImage(currentFrame);
-//                c++;
-//                p++;
-//                if(currentImage != null && currentFrame.keyFrame && ShotBoundaryDetails.combinedDiff(previousImage, currentImage, 0.7, 0.3)){
-////                    System.out.println("Processing previous frame: " + p);
-////                    System.out.println("RGB of previous frame first pixel: " + previousImage.getRGB(0, 0));
-////                    ImageIO.write(previousImage, "png", new File("video_tmp\\" + c + ".png"));
-////                    System.out.println("Processing current frame: " + c);
-////                    System.out.println("RGB of current frame first pixel: " + currentImage.getRGB(0, 0));
-////                    ImageIO.write(currentImage, "png", new File("video_tmp\\" + c + ".png"));
-////                    System.out.println(" ");
+//            Frame currentFrame;
+//            int c = 0;
+//            int n = 1;
+//            BufferedImage currentImage = null;
+//            BufferedImage perivousImage = null;
 //
-//                    if(ShotBoundaryDetails.combinedDiff(previousImage, currentImage, 0.7 ,0.3) == true){
-//                        System.out.println("Processing previous frame: " + p);
-//                        System.out.println("Processing current frame: " + c);
+//            while ((currentFrame = frameGrabber.grabFrame()) != null) {
+//                BufferedImage tempImage = converter.convert(currentFrame);
+//
+//                // 确保tempImage不为null
+//                if (tempImage != null) {
+//                    if (perivousImage == null) {
+//                        // 第一次迭代，初始化perivousImage
+//                        perivousImage = tempImage;
+//                    } else {
+//                        // 从第二次迭代开始执行此代码块
+//                        currentImage = tempImage;
+//
+//                        // 处理当前图像
+//                    if(ShotBoundaryDetails.combinedDiff(perivousImage, currentImage, 0.7, 0.3) && currentFrame.keyFrame){
+//                        System.out.println("Processing previous frame: " + c);
+//                        System.out.println("Processing current frame: " + n);
 //                    }
+//
+//                        // 创建currentImage的深度拷贝并存储到perivousImage中
+//                        perivousImage = new BufferedImage(currentImage.getWidth(), currentImage.getHeight(), currentImage.getType());
+//                        Graphics2D graphics = perivousImage.createGraphics();
+//                        graphics.drawImage(currentImage, 0, 0, null);
+//                        graphics.dispose();
+//
+//                    }
+//                    c++;
+//                    n++;
 //                }
-//                frameCount++;
 //            }
-//            System.out.println("Total frames processed: " + frameCount);
+//
+//            System.out.println("num: " + n);
 //            frameGrabber.stop();
-//            frameGrabber2.stop();
 //        } catch (Exception e) {
 //            e.printStackTrace();
 //        }
 //    }
+
+
+    public static void processVideo(String path) {
+        try (FFmpegFrameGrabber frameGrabber = new FFmpegFrameGrabber(path)) {
+            frameGrabber.start();
+            FFmpegFrameGrabber frameGrabber2 = new FFmpegFrameGrabber(path);
+            frameGrabber2.start();
+
+            Java2DFrameConverter converter = new Java2DFrameConverter();
+            Java2DFrameConverter converter2 = new Java2DFrameConverter();
+            Frame previousFrame = new Frame();
+            Frame currentFrame = frameGrabber.grabImage();
+            BufferedImage previousImage = null;
+            BufferedImage currentImage = converter.getBufferedImage(currentFrame);
+            int frameCount = 0;
+            int p = 0;
+            int c = 1;
+            int shots = 0;
+            while ((currentFrame = frameGrabber.grabImage()) != null){
+                previousFrame = frameGrabber2.grabImage();
+                previousImage = converter2.getBufferedImage(previousFrame);
+                currentImage = converter.getBufferedImage(currentFrame);
+                c++;
+                p++;
+                if(currentImage != null && currentFrame.keyFrame && ShotBoundaryDetails.combinedDiff(previousImage, currentImage, 0.7, 0.3)){
+//                    System.out.println("Processing previous frame: " + p);
+//                    System.out.println("RGB of previous frame first pixel: " + previousImage.getRGB(0, 0));
+//                    ImageIO.write(previousImage, "png", new File("video_tmp\\" + c + ".png"));
+//                    System.out.println("Processing current frame: " + c);
+//                    System.out.println("RGB of current frame first pixel: " + currentImage.getRGB(0, 0));
+//                    ImageIO.write(currentImage, "png", new File("video_tmp\\" + c + ".png"));
+//                    System.out.println(" ");
+
+                    if(ShotBoundaryDetails.combinedDiff(previousImage, currentImage, 0.7 ,0.3) == true){
+                        System.out.println("Processing previous frame: " + p);
+                        System.out.println("Processing current frame: " + c);
+                        ImageIO.write(currentImage, "png", new File("video_tmp\\" + c + ".png"));
+                        shots++;
+                    }
+                }
+                frameCount++;
+            }
+
+            currentFrame = frameGrabber2.grabImage();
+            if (currentFrame != null) {
+                currentImage = converter.getBufferedImage(currentFrame);
+                if (currentImage != null && currentFrame.keyFrame && ShotBoundaryDetails.combinedDiff(previousImage, currentImage, 0.7, 0.3)) {
+                    System.out.println("Processing frame: " + frameCount);
+                    shots++;
+                }
+                frameCount++;
+            }
+
+            System.out.println("Total frames processed: " + frameCount);
+            System.out.println("Total shots found: " + (shots/2));
+            frameGrabber.stop();
+            frameGrabber2.stop();
+            frameGrabber2.release();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
 
 //    public static void processVideo(String path) {

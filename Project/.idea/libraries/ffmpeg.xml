@@ -5,6 +5,9 @@
       <root url="jar://$PROJECT_DIR$/ffmpeg-windows-x86_64.jar!/" />
       <root url="jar://$PROJECT_DIR$/javacpp.jar!/" />
       <root url="jar://$PROJECT_DIR$/javacv.jar!/" />
+      <root url="jar://$PROJECT_DIR$/opencv-windows-x86_64.jar!/" />
+      <root url="jar://$PROJECT_DIR$/opencv.jar!/" />
+      <root url="jar://$PROJECT_DIR$/openblas-windows-x86_64.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />
