@@ -165,32 +165,27 @@ public class ShotBoundaryDetails {
         return 100000 ;
     }
 
-    public static boolean combinedDiff(BufferedImage buff1, BufferedImage buff2, double w1, double w2, String path){
+    public static boolean combinedDiff(BufferedImage buff1, BufferedImage buff2, double w1, double w2, String path,
+                                       int startFrame, int endFrame){
         double pixelxDiffScore = pixelxDiff(buff1, buff2);
-        double hsvDiffSocre = hsvDiff(buff1, buff2) ;
+        double hsvDiffSocre = hsvDiff(buff1, buff2);
         double weightedScore = w1 * pixelxDiffScore + w2 * hsvDiffSocre;
         String fileName = path.substring(path.lastIndexOf("\\") + 1);
         String signature;
-//        System.out.println("pixel: "+ pixelxDiffScore);
-//        System.out.println("hsv: "+ hsvDiffSocre);
-//        if(pixelxDiffScore > 0 || hsvDiffSocre > 0){
-//            System.out.println("pixel: "+ pixelxDiffScore);
-//            System.out.println("hsv: "+ hsvDiffSocre);
-//            System.out.println("weightedScore: "+ weightedScore);
-//        }
+
         if(weightedScore >= 0.75){
             System.out.println("pixel: "+ pixelxDiffScore);
             System.out.println("hsv: "+ hsvDiffSocre);
             System.out.println("weightedScore: "+ weightedScore);
             System.out.println(" ");
-            signature = createSignature(ShotBoundaryDetails, pixelxDiffScore);
+            signature = createSignature(ShotBoundaryDetails, pixelxDiffScore, startFrame, endFrame);
             appendSceneSignatureToFile(fileName, signature, "signatures.csv");
             return true;
         }
         return  false;
     }
 
-    public static String createSignature(ShotBoundaryDetails hsvFeatures, double pixelDiff) {
+    public static String createSignature(ShotBoundaryDetails hsvFeatures, double pixelDiff, int startFrame, int endFrame) {
         // 将特征组合成一个字符串
         StringBuilder signatureBuilder = new StringBuilder();
         // 添加像素差异特征
@@ -202,6 +197,8 @@ public class ShotBoundaryDetails {
         signatureBuilder.append("H_Max:").append(hsvFeatures.maxH).append(";");
         signatureBuilder.append("S_Max:").append(hsvFeatures.maxS).append(";");
         signatureBuilder.append("V_Max:").append(hsvFeatures.maxV);
+        signatureBuilder.append("|").append(startFrame);
+        signatureBuilder.append("|").append(endFrame);
 
         return signatureBuilder.toString();
     }

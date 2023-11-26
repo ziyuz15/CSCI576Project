@@ -5,6 +5,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import javax.swing.*;
+import java.nio.ShortBuffer;
 import java.util.LinkedList;
 import java.util.Deque;
 import javax.imageio.ImageIO;
@@ -13,6 +14,8 @@ import org.bytedeco.javacv.*;
 import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.bytedeco.javacv.Java2DFrameConverter;
 import org.bytedeco.javacv.Frame;
+
+import static org.example.AudioProcess.getSampleShot;
 
 /**
  * This class contains the basic video and audio process functions.
@@ -25,6 +28,9 @@ import org.bytedeco.javacv.Frame;
 public class VideoProcessor {
     private static JLabel label1 = new JLabel();
     private static JLabel label2 = new JLabel();
+
+    private static final int FRAME_SIZE = 1024; // frame size of Fast Fourier Transform(FFT)
+    private static final int OVERLAP = 512; // overlap size of Fast Fourier Transform(FFT)
 
     private static void createAndShowGUI() {
         // 创建 JFrame 实例
@@ -155,7 +161,7 @@ public class VideoProcessor {
 //    }
 
 
-    public static void processVideo(String path) {
+    public void processVideo(String path) {
         try (FFmpegFrameGrabber frameGrabber = new FFmpegFrameGrabber(path)) {
             frameGrabber.start();
             FFmpegFrameGrabber frameGrabber2 = new FFmpegFrameGrabber(path);
@@ -167,17 +173,33 @@ public class VideoProcessor {
             Frame currentFrame = frameGrabber.grabImage();
             BufferedImage previousImage = null;
             BufferedImage currentImage = converter.getBufferedImage(currentFrame);
+            String wavPath = path.replaceAll("\\.mp4$", "");
+            short[] curSample = getSampleShot(wavPath + ".wav");
+
             int frameCount = 0;
             int p = 0;
             int c = 1;
+            int startFrame = 0;
+            int endFrame = 0;
             int shots = 0;
+
             while ((currentFrame = frameGrabber.grabImage()) != null){
+
+                AudioProcess audioProcess = new AudioProcess(path);
                 previousFrame = frameGrabber2.grabImage();
                 previousImage = converter2.getBufferedImage(previousFrame);
                 currentImage = converter.getBufferedImage(currentFrame);
                 c++;
                 p++;
-                if(currentImage != null && currentFrame.keyFrame && ShotBoundaryDetails.combinedDiff(previousImage, currentImage, 0.7, 0.3, path)){
+                endFrame = p;
+                if(currentImage != null && currentFrame.keyFrame && ShotBoundaryDetails.combinedDiff(previousImage, currentImage, 0.7, 0.3, path,
+                        startFrame, endFrame)){
+                    audioProcess.createAudioSignatureShots(startFrame, endFrame, curSample);
+                    startFrame = endFrame;
+                    System.out.println("Processing previous frame: " + p);
+                    System.out.println("Processing current frame: " + c);
+    //              ImageIO.write(currentImage, "png", new File("video_tmp\\" + c + ".png"));
+                    shots++;
 //                    System.out.println("Processing previous frame: " + p);
 //                    System.out.println("RGB of previous frame first pixel: " + previousImage.getRGB(0, 0));
 //                    ImageIO.write(previousImage, "png", new File("video_tmp\\" + c + ".png"));
@@ -185,10 +207,6 @@ public class VideoProcessor {
 //                    System.out.println("RGB of current frame first pixel: " + currentImage.getRGB(0, 0));
 //                    ImageIO.write(currentImage, "png", new File("video_tmp\\" + c + ".png"));
 //                    System.out.println(" ");
-                    System.out.println("Processing previous frame: " + p);
-                    System.out.println("Processing current frame: " + c);
-                    ImageIO.write(currentImage, "png", new File("video_tmp\\" + c + ".png"));
-                    shots++;
 
                 }
                 frameCount++;
@@ -196,8 +214,16 @@ public class VideoProcessor {
 
             currentFrame = frameGrabber2.grabImage();
             if (currentFrame != null) {
+                if(currentFrame.samples != null){
+                    ShortBuffer shortBuffer = (ShortBuffer)currentFrame.samples[0];
+                    short[] samples = new short[shortBuffer.capacity()];
+                    shortBuffer.get(samples);
+
+
+                }
                 currentImage = converter.getBufferedImage(currentFrame);
-                if (currentImage != null && currentFrame.keyFrame && ShotBoundaryDetails.combinedDiff(previousImage, currentImage, 0.7, 0.3, path)) {
+                if (currentImage != null && currentFrame.keyFrame && ShotBoundaryDetails.combinedDiff(previousImage, currentImage, 0.7, 0.3, path,
+                        startFrame, endFrame)) {
                     System.out.println("Processing frame: " + frameCount);
                     shots++;
                 }

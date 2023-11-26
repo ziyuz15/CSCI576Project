@@ -63,6 +63,37 @@ public class AudioProcess {
     }
 
     /**
+     * Function for detecting shot boundaries
+     * @param querySamplePath
+     * @return
+     */
+    public static short[] getSampleShot(String querySamplePath) {
+        try (AudioInputStream audioStream = AudioSystem.getAudioInputStream(new File(querySamplePath))) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buffer = new byte[1024];
+            int read;
+            while ((read = audioStream.read(buffer)) != -1) {
+                out.write(buffer, 0, read);
+            }
+            byte[] audioBytes = out.toByteArray();
+
+            ShortBuffer shortBuffer = ByteBuffer.wrap(audioBytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer();
+            short[] samples = new short[audioBytes.length / 2];
+            shortBuffer.get(samples);
+
+            short[] samplesLeft = new short[samples.length / 2];
+
+            for (int i = 0; i < samples.length / 2; i++) {
+                samplesLeft[i] = samples[2 * i];
+            }
+
+            return samplesLeft;
+        } catch (UnsupportedAudioFileException | IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
      * calculate the Euclidean distance between two frames.
      * @param magnitudeData1 the first magnitude data array
      * @param magnitudeData2 the second magnitude data array
@@ -151,6 +182,7 @@ public class AudioProcess {
 
         double[][] firstMagnitudeArray = new double[1][512];
         getMagnitude(querySample, 0, firstMagnitudeArray);
+        saveMagnitudeData(3, firstMagnitudeArray);
         double[] firstMagnitude = firstMagnitudeArray[0];
 
         double minDistance = Double.POSITIVE_INFINITY;
@@ -215,6 +247,25 @@ public class AudioProcess {
         } catch (UnsupportedAudioFileException | IOException | LineUnavailableException | InterruptedException e) {
         e.printStackTrace();
     }
+    }
+
+    /**
+     * This function is used to create audio signature while detecting shot boundaries.
+     * @author pan
+     */
+    public void createAudioSignatureShots(int startFrame, int endFrame, short[] curSample){
+        for (int i = startFrame; i <= endFrame; i++){
+            int fileIndex = i + 1;
+
+            int ite_ct = curSample.length / (FRAME_SIZE - OVERLAP);
+            double[][] curArray = new double[ite_ct][512];
+            getMagnitude(curSample, curSample.length, curArray);
+            magnitudeSpectrumList.add(curArray);
+
+            // if you want to save the magnitude data to local file, call saveMagnitudeData()
+            // saveMagnitudeData(fileIndex, curArray);
+            System.out.println("Shots " + (i+1) + " loaded");
+        }
     }
 
     private void createAudioSignature(){
@@ -292,5 +343,6 @@ public class AudioProcess {
         magnitudeSpectrumList = new ArrayList<>();
         createAudioSignature();
         matchAudio(sampleLeft);
+
     }
 }
