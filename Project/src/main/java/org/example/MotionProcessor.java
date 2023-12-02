@@ -8,6 +8,7 @@ import org.bytedeco.javacv.OpenCVFrameConverter;
 import org.bytedeco.javacpp.indexer.FloatRawIndexer;
 //import org.bytedeco.javacv.Java2DFrameConverter;
 //import java.awt.image.BufferedImage;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.io.*;
@@ -148,7 +149,7 @@ public class MotionProcessor {
 //        return mat;
 //    }
 
-    private double[] computeMotionStatistics(String videoPath) {
+    private static double[] computeMotionStatistics(String videoPath) {
         try (FFmpegFrameGrabber frameGrabber = new FFmpegFrameGrabber(videoPath)) {
             frameGrabber.start();
             OpenCVFrameConverter.ToMat converterToMat = new OpenCVFrameConverter.ToMat();
@@ -177,13 +178,70 @@ public class MotionProcessor {
         }
     }
 
+    private static double[] computeMotionStatisticsCompare(String videoPath) {
+        try (FFmpegFrameGrabber frameGrabber = new FFmpegFrameGrabber(videoPath)) {
+            frameGrabber.start();
+            OpenCVFrameConverter.ToMat converterToMat = new OpenCVFrameConverter.ToMat();
+            OpenCVFrameConverter.ToMat converterToMat1 = new OpenCVFrameConverter.ToMat();
+            List<Double> motionStats = new ArrayList<>();
+            Mat prevImage = new Mat();
+            Mat currentImage = new Mat();
+            Mat firstImage = new Mat();
+            Mat flow = new Mat();
+            int numKey = 0;
+            Frame frame = frameGrabber.grabImage();
+            prevImage = converterToMat.convert(frame);
+            cvtColor(prevImage, prevImage, COLOR_BGR2GRAY);
+
+            while ((frame = frameGrabber.grabImage()) != null) {
+                currentImage = converterToMat1.convert(frame);
+                if(frame.keyFrame){
+                    cvtColor(currentImage, currentImage, COLOR_BGR2GRAY);
+                    calcOpticalFlowFarneback(prevImage, currentImage, flow, 0.5, 3, 15, 3, 5, 1.2, 0);
+                    motionStats.add(calculateMotionFromFlow(flow));
+                    numKey++;
+                }
+                prevImage = currentImage.clone(); // This is required to keep the previous image for the next iteration
+            }
+            frameGrabber.stop();
+            if(numKey == 0){
+                 return computeMotionStatistics(videoPath);
+            }
+            return motionStats.stream().mapToDouble(Double::doubleValue).toArray();
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error processing video file: " + videoPath, e);
+        }
+    }
+    public static double computeMotionStatisticsShots(Frame prevFrame, Frame currFrame) {
+        try {
+            OpenCVFrameConverter.ToMat converterToMat = new OpenCVFrameConverter.ToMat();
+            OpenCVFrameConverter.ToMat converterToMat2 = new OpenCVFrameConverter.ToMat();
+            Mat prevMat = converterToMat.convert(prevFrame);
+            Mat currentMat = converterToMat2.convert(currFrame);
+            Mat flow = new Mat();
+//            System.out.println("Mat is null: " + (prevMat == null));
+//            System.out.println("Mat is empty: " + (prevMat != null && prevMat.empty()));
+
+            cvtColor(prevMat, prevMat, COLOR_BGR2GRAY);
+            cvtColor(currentMat, currentMat, COLOR_BGR2GRAY);
+
+            calcOpticalFlowFarneback(prevMat, currentMat, flow, 0.5, 3, 15, 3, 5, 1.2, 0);
+            converterToMat.close();
+            converterToMat2.close();
+            return calculateMotionFromFlow(flow);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error processing frames", e);
+        }
+    }
     /**
      * Calculate the magnitude of motion from the optical flow matrix.
      *
      * @param flow Optical flow matrix
      * @return Average magnitude of motion for the given frame
      */
-    private double calculateMotionFromFlow(Mat flow) {
+    private static double calculateMotionFromFlow(Mat flow) {
         double motionSum = 0.0;
         FloatRawIndexer indexer = flow.createIndexer();
         for (int y = 0; y < flow.rows(); y++) {
@@ -238,7 +296,6 @@ public class MotionProcessor {
             // Sliding window approach over the motion statistics of the database video
             for (int frameIndex = 0; frameIndex <= currentVideoSignature.length - queryMotionStats.length; frameIndex++) {
                 double distance = calculateEuclideanDistance(queryMotionStats, currentVideoSignature, frameIndex);
-
                 if (distance < minDistance) {
                     minDistance = distance;
                     bestMatchStartFrame = frameIndex;
@@ -261,8 +318,70 @@ public class MotionProcessor {
         System.out.println("Execution Duration: " + executionDuration + " ms");
     }
 
-    private double calculateEuclideanDistance(double[] queryStats, double[] videoStats, int startFrame) {
+    private static double[] loadMotionSignature(String filePath) {
+        long startTime = System.currentTimeMillis();
+        List<Double> motionStats = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                motionStats.add(Double.parseDouble(line));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        long endTime = System.currentTimeMillis();
+        long executionDuration = endTime - startTime;
+//        System.out.println("read file time: " + executionDuration);
+        return motionStats.stream().mapToDouble(Double::doubleValue).toArray();
+    }
+
+    public static void compareVideosShots(String queryVideoPath) throws Exception {
+        long startTime = System.currentTimeMillis();
+        // 假设 queryVideoPath 是查询镜头的路径
+        double[] queryMotionStats = computeMotionStatistics(queryVideoPath); // 计算查询视频的运动特征
+        File signaturesDirectory = new File("D:\\USC\\CSCI576\\CSCI576Project\\Project\\signature\\"); // 存储签名文件的目录
+        System.out.println("queryMotionStats.lenght: "+ queryMotionStats.length);
+        double minDistance = Double.MAX_VALUE;
+        String bestMatchShotFile = "";
+
+        for (File signatureFile : signaturesDirectory.listFiles()) {
+            double[] shotSignature = loadMotionSignature(signatureFile.getPath());
+            if(shotSignature.length >= queryMotionStats.length){
+                for (int frameIndex = 0; frameIndex <= shotSignature.length - queryMotionStats.length; frameIndex++) {
+                    double distance = calculateEuclideanDistance(queryMotionStats, shotSignature, frameIndex);
+                    if (distance < minDistance) {
+                        minDistance = distance;
+//                    bestMatchStartFrame = frameIndex;
+                        //bestMatchVideoIndex = videoIndex; // Use the video index from the map
+                        bestMatchShotFile = signatureFile.getName();
+                    }
+                }
+            }
+            else {
+                double distance = calculateEuclideanDistance(queryMotionStats, shotSignature, 0);
+                if (distance < minDistance) {
+                    minDistance = distance;
+//                    bestMatchStartFrame = frameIndex;
+                    //bestMatchVideoIndex = videoIndex; // Use the video index from the map
+                    bestMatchShotFile = signatureFile.getName();
+                }
+            }
+        }
+        long endTime = System.currentTimeMillis();
+        long executionDuration = endTime - startTime;
+        // 输出最佳匹配结果
+        if (!bestMatchShotFile.isEmpty()) {
+            System.out.println("Best match is " + bestMatchShotFile + " with a distance of " + minDistance+ " waste time: "+ executionDuration / 1000);
+
+        } else {
+            System.out.println("No match found.");
+        }
+    }
+    private static double calculateEuclideanDistance(double[] queryStats, double[] videoStats, int startFrame) {
         double sum = 0.0;
+        if(startFrame > videoStats.length || startFrame < 0){
+            startFrame = 0;
+        }
         for (int i = 0; i < queryStats.length; i++) {
             int videoFrameIndex = startFrame + i;
             if (videoFrameIndex < videoStats.length) {
@@ -322,40 +441,55 @@ public class MotionProcessor {
         }
     }
 
-private Map<Integer, double[]> loadMotionData(String combinedFilePath) {
-    Map<Integer, double[]> motionDataMap = new HashMap<>();
-    try (BufferedReader reader = new BufferedReader(new FileReader(combinedFilePath))) {
-        String line;
-        int currentVideoIndex = -1;
-        List<Double> currentMotionDataList = new ArrayList<>();
+    private Map<Integer, double[]> loadMotionData(String combinedFilePath) {
+        Map<Integer, double[]> motionDataMap = new HashMap<>();
+        try (BufferedReader reader = new BufferedReader(new FileReader(combinedFilePath))) {
+            String line;
+            int currentVideoIndex = -1;
+            List<Double> currentMotionDataList = new ArrayList<>();
 
-        while ((line = reader.readLine()) != null) {
-            line = line.trim(); // Trim to remove any leading or trailing whitespace
+            while ((line = reader.readLine()) != null) {
+                line = line.trim(); // Trim to remove any leading or trailing whitespace
 
-            if (line.startsWith("Video")) {
-                if (currentVideoIndex != -1) {
-                    // Save the previously read data
-                    motionDataMap.put(currentVideoIndex, currentMotionDataList.stream().mapToDouble(Double::doubleValue).toArray());
-                    currentMotionDataList.clear();
+                if (line.startsWith("Video")) {
+                    if (currentVideoIndex != -1) {
+                        // Save the previously read data
+                        motionDataMap.put(currentVideoIndex, currentMotionDataList.stream().mapToDouble(Double::doubleValue).toArray());
+                        currentMotionDataList.clear();
+                    }
+                    // Extract video index from the line
+                    currentVideoIndex = Integer.parseInt(line.split(" ")[1]);
+                } else if (!line.isEmpty()) {
+                    // Add motion data to the list
+                    currentMotionDataList.add(Double.parseDouble(line));
                 }
-                // Extract video index from the line
-                currentVideoIndex = Integer.parseInt(line.split(" ")[1]);
-            } else if (!line.isEmpty()) {
-                // Add motion data to the list
-                currentMotionDataList.add(Double.parseDouble(line));
+            }
+
+            // Add the last video's data
+            if (currentVideoIndex != -1 && !currentMotionDataList.isEmpty()) {
+                motionDataMap.put(currentVideoIndex, currentMotionDataList.stream().mapToDouble(Double::doubleValue).toArray());
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return motionDataMap;
+    }
+
+    public List<String> getSignatureFilePaths(String directoryPath) {
+        File directory = new File(directoryPath);
+        File[] files = directory.listFiles();
+        List<String> filePaths = new ArrayList<>();
+
+        if (files != null) {
+            for (File file : files) {
+                if (file.isFile()) {
+                    filePaths.add(file.getAbsolutePath());
+                }
             }
         }
 
-        // Add the last video's data
-        if (currentVideoIndex != -1 && !currentMotionDataList.isEmpty()) {
-            motionDataMap.put(currentVideoIndex, currentMotionDataList.stream().mapToDouble(Double::doubleValue).toArray());
-        }
-    } catch (IOException e) {
-        e.printStackTrace();
+        return filePaths;
     }
-    return motionDataMap;
-}
-
 }
 
 

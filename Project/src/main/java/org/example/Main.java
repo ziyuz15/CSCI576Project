@@ -5,10 +5,13 @@ package org.example;
 public class Main {
     public static void main(String[] args) throws Exception {
         VideoProcessor videoProcessor = new VideoProcessor();
+
         long startTime = System.nanoTime();
-//        VideoProcessor.processVideo("D:\\USC\\CSCI576\\Videos\\video1.mp4");
-        AudioProcess audioProcess = new AudioProcess("D:\\USC\\CSCI576\\Audios_Test\\");
-        audioProcess.processAudio("video3_1.wav");
+////        videoProcessor.processVideo("D:\\USC\\CSCI576\\Videos\\video2.mp4");
+//        videoProcessor.processVideo("D:\\USC\\CSCI576\\Videos\\video11.mp4");
+        MotionProcessor.compareVideosShots("D:\\USC\\CSCI576\\Queries\\video2_1.mp4");
+//        AudioProcess audioProcess = new AudioProcess("D:\\USC\\CSCI576\\Audios_Test\\");
+//        audioProcess.processAudio("video3_1.wav");
         long endTime = System.nanoTime();
         long duration = endTime - startTime;
 

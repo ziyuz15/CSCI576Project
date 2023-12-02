@@ -1,8 +1,21 @@
 package org.example;
 
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.FileWriter;
 import java.io.IOException;
+
+import org.bytedeco.javacpp.FloatPointer;
+import org.bytedeco.javacpp.IntPointer;
+import org.bytedeco.javacpp.PointerPointer;
+import org.bytedeco.javacpp.indexer.FloatRawIndexer;
+import org.bytedeco.javacv.OpenCVFrameConverter;
+import org.bytedeco.opencv.opencv_core.*;
+import org.opencv.core.MatOfFloat;
+
+import static org.bytedeco.opencv.global.opencv_imgcodecs.imread;
+import static org.bytedeco.opencv.global.opencv_imgproc.*;
+import static org.bytedeco.opencv.global.opencv_core.*;
 
 public class ShotBoundaryDetails {
     static final double threshold = 10;
@@ -51,6 +64,52 @@ public class ShotBoundaryDetails {
         }
 
         return (double)differentPixels / totalPixels;
+    }
+    public static Mat computeHSV(Mat image, int bins){
+        Mat histogram = new Mat();
+        IntPointer channels = new IntPointer(0); // 指向通道索引的指针
+        int[] histSize = new int[]{bins};
+        float[] range = new float[]{0, 256};
+        FloatPointer ranges = new FloatPointer(range); // 指向范围的指针
+
+        calcHist(image, 1, channels, new Mat(), histogram, 1, new IntPointer(histSize), new PointerPointer<>(ranges), true, false);
+
+        normalize(histogram, histogram, 0, 1, NORM_MINMAX, -1, new Mat());
+
+        return histogram;
+    }
+    public static Mat getHSVSignature(org.bytedeco.javacv.Frame frame){
+        OpenCVFrameConverter.ToMat converterToMat = new OpenCVFrameConverter.ToMat();
+        Mat imageOrigin = converterToMat.convert(frame);
+        Mat image = processFrameWithLowPass(imageOrigin);
+        if(image.empty()){
+            System.out.println("Not found");
+            return null;
+        }
+
+        MatVector colorChannels = new MatVector(3);
+        split(image, colorChannels);
+
+        int bins = 256;
+
+        Mat histR = computeHSV(colorChannels.get(0), bins);
+        Mat histG = computeHSV(colorChannels.get(1), bins);
+        Mat histB = computeHSV(colorChannels.get(2), bins);
+
+        Mat allHist = new Mat();
+        hconcat(new MatVector(histR, histG, histB), allHist);
+
+        //视文件大小可能需要降维处理
+
+        return allHist;
+    }
+    public static Mat processFrameWithLowPass(Mat frame) {
+        Mat processedFrame = new Mat();
+        GaussianBlur(frame, processedFrame, new Size(9, 9), 0);
+        return processedFrame;
+    }
+    public static double compareHSV(Mat hist1, Mat hist2){
+        return compareHist(hist1, hist2, HISTCMP_CHISQR);
     }
     public static ShotBoundaryDetails HSV(BufferedImage buff, int[] frequencyH, int[] frequencyS, int[] frequencyV){
         int width = buff.getWidth();

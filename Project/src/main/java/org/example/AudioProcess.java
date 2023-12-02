@@ -1,5 +1,6 @@
 package org.example;
 
+import org.bytedeco.javacv.Frame;
 import org.jtransforms.fft.DoubleFFT_1D;
 
 import javax.sound.sampled.*;
@@ -21,6 +22,8 @@ import java.util.List;
  */
 public class AudioProcess {
     private static final int FRAME_SIZE = 1024; // frame size of Fast Fourier Transform(FFT)
+
+    private static final double ratio = 0.5;
     private static final int OVERLAP = 512; // overlap size of Fast Fourier Transform(FFT)
     private ArrayList<double[][]> magnitudeSpectrumList; // list of audio signatures
     private static final int TOTAL_FILE_NUMS = 11; // num of all audio files
@@ -64,33 +67,34 @@ public class AudioProcess {
 
     /**
      * Function for detecting shot boundaries
-     * @param querySamplePath
+     * @param frame
+     * @param audioSamplesBuffer
      * @return
      */
-    public static short[] getSampleShot(String querySamplePath) {
-        try (AudioInputStream audioStream = AudioSystem.getAudioInputStream(new File(querySamplePath))) {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            byte[] buffer = new byte[1024];
-            int read;
-            while ((read = audioStream.read(buffer)) != -1) {
-                out.write(buffer, 0, read);
-            }
-            byte[] audioBytes = out.toByteArray();
+    public static ShortBuffer getSampleShot(Frame frame,  ShortBuffer audioSamplesBuffer) {
+        if (frame.samples != null) {
+            ShortBuffer channelSamplesShortBuffer = (ShortBuffer) frame.samples[0];
+            int numSamples = channelSamplesShortBuffer.remaining() / 2;
 
-            ShortBuffer shortBuffer = ByteBuffer.wrap(audioBytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer();
-            short[] samples = new short[audioBytes.length / 2];
-            shortBuffer.get(samples);
-
-            short[] samplesLeft = new short[samples.length / 2];
-
-            for (int i = 0; i < samples.length / 2; i++) {
-                samplesLeft[i] = samples[2 * i];
+            if (audioSamplesBuffer.remaining() < numSamples) {
+                ShortBuffer newBuffer = ShortBuffer.allocate(audioSamplesBuffer.capacity() + numSamples);
+                audioSamplesBuffer.flip();
+                newBuffer.put(audioSamplesBuffer);
+                audioSamplesBuffer = newBuffer;
             }
 
-            return samplesLeft;
-        } catch (UnsupportedAudioFileException | IOException e) {
-            throw new RuntimeException(e);
+//            audioSamplesBuffer.put(channelSamplesShortBuffer);
+            for (int i = 0; channelSamplesShortBuffer.hasRemaining(); i++) {
+                short sample = channelSamplesShortBuffer.get(); // 读取左声道样本
+                audioSamplesBuffer.put(sample);
+
+                if (channelSamplesShortBuffer.hasRemaining()) {
+                    channelSamplesShortBuffer.get(); // 跳过右声道样本
+                }
+            }
         }
+
+        return audioSamplesBuffer;
     }
 
     /**
@@ -141,6 +145,22 @@ public class AudioProcess {
         new DoubleFFT_1D(FRAME_SIZE).complexForward(fftResult);
     }
 
+    public void FFTShot(short[] frame, double[] fftResult, int FRAME_SIZE){
+        // Hann window：
+        for(int i = 0; i < FRAME_SIZE; i++) {
+            frame[i] *= 0.5 * (1 - Math.cos(2 * Math.PI * i / (FRAME_SIZE - 1)));
+        }
+
+        // prepare real & imaginary parts
+        for (int i = 0; i < FRAME_SIZE; i++) {
+            fftResult[2 * i] = frame[i]; // real part
+            fftResult[2 * i + 1] = 0; // imaginary part
+        }
+
+        // perform FFT
+        new DoubleFFT_1D(FRAME_SIZE).complexForward(fftResult);
+    }
+
     /**
      * Split the whole sample into several frames, and then perform FFT on each frame.
      * For each FFT result frame, calculate corresponding magnitude spectrum
@@ -155,6 +175,41 @@ public class AudioProcess {
                 short[] frame = Arrays.copyOfRange(sample, start, start + FRAME_SIZE);
                 double[] fftResult = new double[FRAME_SIZE * 2];
                 FFT(frame, fftResult);
+                for(int i = 0; i < magnitudeSpectrum.length; i++) {
+                    magnitudeSpectrumArray[0][i] = Math.sqrt(fftResult[2 * i] * fftResult[2 * i] + fftResult[2 * i + 1] * fftResult[2 * i + 1]);
+                }
+            }
+        }else {
+            int j = 0;
+            for(int start = 0; start + FRAME_SIZE <= range; start += FRAME_SIZE - OVERLAP) {
+                short[] frame = Arrays.copyOfRange(sample, start, start + FRAME_SIZE);
+                double[] fftResult = new double[FRAME_SIZE * 2];
+                FFT(frame, fftResult);
+                for(int i = 0; i < magnitudeSpectrum.length; i++) {
+                    magnitudeSpectrumArray[j][i] = Math.sqrt(fftResult[2 * i] * fftResult[2 * i] + fftResult[2 * i + 1] * fftResult[2 * i + 1]);
+                }
+                j += 1;
+            }
+        }
+    }
+
+    /**
+     * Split the whole sample into several frames, and then perform FFT on each frame.
+     * For each FFT result frame, calculate corresponding magnitude spectrum
+     * @param sample the given sample
+     * @param range if range is 0, only get magnitude of one frame. else get the magnitude of all frames.
+     * @param magnitudeSpectrumArray store the magnitude spectrum to the given array
+     */
+    private void getMagnitudeShot(short[] sample, int range, double[][] magnitudeSpectrumArray, int FRAME_SIZE, int OVERLAP){
+        double[] magnitudeSpectrum = new double[FRAME_SIZE / 2];
+        System.out.println("magnitudeSpectrum.length: "+ magnitudeSpectrum.length);
+        if (range == 0){
+            for(int start = 0; start < FRAME_SIZE; start += FRAME_SIZE - OVERLAP) {
+                short[] frame = Arrays.copyOfRange(sample, start, start + FRAME_SIZE);
+                double[] fftResult = new double[FRAME_SIZE * 2];
+
+                System.out.println("fftResult.length: "+ fftResult.length);
+                FFTShot(frame, fftResult, FRAME_SIZE);
                 for(int i = 0; i < magnitudeSpectrum.length; i++) {
                     magnitudeSpectrumArray[0][i] = Math.sqrt(fftResult[2 * i] * fftResult[2 * i] + fftResult[2 * i + 1] * fftResult[2 * i + 1]);
                 }
@@ -253,19 +308,23 @@ public class AudioProcess {
      * This function is used to create audio signature while detecting shot boundaries.
      * @author pan
      */
-    public void createAudioSignatureShots(int startFrame, int endFrame, short[] curSample){
-        for (int i = startFrame; i <= endFrame; i++){
-            int fileIndex = i + 1;
-
-            int ite_ct = curSample.length / (FRAME_SIZE - OVERLAP);
-            double[][] curArray = new double[ite_ct][512];
-            getMagnitude(curSample, curSample.length, curArray);
-            magnitudeSpectrumList.add(curArray);
-
-            // if you want to save the magnitude data to local file, call saveMagnitudeData()
-            // saveMagnitudeData(fileIndex, curArray);
-            System.out.println("Shots " + (i+1) + " loaded");
+    public void createAudioSignatureShots(int startFrame, int endFrame, short[] curSample, String path, int shots){
+        int frameSize = (int)((endFrame - startFrame + 1) * ratio);
+        if(frameSize == 0){
+            frameSize = 1;
         }
+        int overLap = frameSize / 2;
+        if(overLap == 0){
+            overLap = 1;
+        }
+        int ite_ct = curSample.length / (frameSize - overLap);
+        double[][] curArray = new double[ite_ct][512];
+        System.out.println("s: "+ startFrame + " e: "+ endFrame + " frame_size: "+ frameSize + " curSample.length:" + curSample.length);
+        getMagnitudeShot(curSample, curSample.length, curArray, frameSize, overLap);
+        magnitudeSpectrumList.add(curArray);
+        saveMagnitudeDataShot(path, shots, curArray);
+        System.out.println("Shots loaded");
+
     }
 
     private void createAudioSignature(){
@@ -304,7 +363,27 @@ public class AudioProcess {
             e.printStackTrace();
         }
     }
-
+    /**
+     * save signature data(magnitude) to csv file
+     * @param path
+     * @param magnitudeData magnitude data
+     */
+    private void saveMagnitudeDataShot(String path, int shots, double[][] magnitudeData){
+        String curFilePath = path+ shots +".csv";
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(curFilePath))) {
+            for (double[] row : magnitudeData) {
+                String[] stringRow = new String[row.length];
+                for (int j = 0; j < row.length; j++) {
+                    stringRow[j] = String.format("%.6f", row[j]);
+                }
+                String line = String.join(",", stringRow);
+                writer.write(line);
+                writer.newLine();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
     /**
      * load signatures from local file
      * @param fileIndex the index of the file to be loaded

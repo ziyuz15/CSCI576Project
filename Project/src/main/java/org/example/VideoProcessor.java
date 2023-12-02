@@ -2,12 +2,14 @@ package org.example;
 //package videoProcessing.src;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import javax.swing.*;
 import java.nio.ShortBuffer;
-import java.util.LinkedList;
-import java.util.Deque;
+import java.util.*;
+import java.util.List;
 import javax.imageio.ImageIO;
 
 import org.bytedeco.javacv.*;
@@ -69,98 +71,6 @@ public class VideoProcessor {
      * The function is used for extraing and excuting the processing the frames of Video and Audio from MP4 files.
      * @param path
      */
-//    public static void processVideo(String path){
-//        Deque<Frame> frameQueue = new LinkedList<>();
-//        try( FFmpegFrameGrabber frameGrabber = new FFmpegFrameGrabber(path)) {
-//
-//            frameGrabber.start();
-//            Java2DFrameConverter converter = new Java2DFrameConverter();
-//            Frame frame = new Frame();
-//            frame = frameGrabber.grabImage();
-//            Frame previousFrame = new Frame();
-//            Frame currentFrame = new Frame();
-//            int n = 0;
-//            while (frame != null) {
-//                frameQueue.addLast(frame);
-//                if(frameQueue.size() > 3){
-//                    frameQueue.removeFirst();
-//                }
-//                Frame frame1 = new Frame();
-//                frame1 = frameQueue.getFirst();
-//                Frame frame2 = new Frame();
-//                frame2 = frameQueue.getLast();
-//
-//                BufferedImage buff1 = converter.convert(frame1);
-//                BufferedImage buff2 = converter.convert(frame2);
-//
-//                if(buff2 != null){
-//                    System.out.println("Processing frame: " + n);
-//                    System.out.println("RGB of previousFrame frame first pixel: " + buff1.getRGB(0, 0));
-//                    ImageIO.write(buff1, "png", new File("video_tmp\\" + n + ".png"));
-//                    n = n + 1;
-//                    System.out.println("Processing frame: " + n);
-//                    System.out.println("RGB of current frame first pixel: " + buff2.getRGB(0, 0));
-//                    ImageIO.write(buff2, "png", new File("video_tmp\\" + n + ".png"));
-//                    System.out.println(" ");
-//                }
-//
-//                frame = frameGrabber.grabImage();
-//
-//            }
-//            frameGrabber.stop();
-//        } catch (IOException e) {
-//            throw new RuntimeException(e);
-//        }
-//    }
-//    public static void processVideo(String path) {
-//        try (FFmpegFrameGrabber frameGrabber = new FFmpegFrameGrabber(path)) {
-//            frameGrabber.start();
-//
-//            Java2DFrameConverter converter = new Java2DFrameConverter();
-//            Frame currentFrame;
-//            int c = 0;
-//            int n = 1;
-//            BufferedImage currentImage = null;
-//            BufferedImage perivousImage = null;
-//
-//            while ((currentFrame = frameGrabber.grabFrame()) != null) {
-//                BufferedImage tempImage = converter.convert(currentFrame);
-//
-//                // 确保tempImage不为null
-//                if (tempImage != null) {
-//                    if (perivousImage == null) {
-//                        // 第一次迭代，初始化perivousImage
-//                        perivousImage = tempImage;
-//                    } else {
-//                        // 从第二次迭代开始执行此代码块
-//                        currentImage = tempImage;
-//
-//                        // 处理当前图像
-//                    if(ShotBoundaryDetails.combinedDiff(perivousImage, currentImage, 0.7, 0.3) && currentFrame.keyFrame){
-//                        System.out.println("Processing previous frame: " + c);
-//                        System.out.println("Processing current frame: " + n);
-//                    }
-//
-//                        // 创建currentImage的深度拷贝并存储到perivousImage中
-//                        perivousImage = new BufferedImage(currentImage.getWidth(), currentImage.getHeight(), currentImage.getType());
-//                        Graphics2D graphics = perivousImage.createGraphics();
-//                        graphics.drawImage(currentImage, 0, 0, null);
-//                        graphics.dispose();
-//
-//                    }
-//                    c++;
-//                    n++;
-//                }
-//            }
-//
-//            System.out.println("num: " + n);
-//            frameGrabber.stop();
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//    }
-
-
     public void processVideo(String path) {
         try (FFmpegFrameGrabber frameGrabber = new FFmpegFrameGrabber(path)) {
             frameGrabber.start();
@@ -174,7 +84,8 @@ public class VideoProcessor {
             BufferedImage previousImage = null;
             BufferedImage currentImage = converter.getBufferedImage(currentFrame);
             String wavPath = path.replaceAll("\\.mp4$", "");
-            short[] curSample = getSampleShot(wavPath + ".wav");
+            String fileName = path.substring(path.lastIndexOf("\\") + 1).replaceAll("\\.mp4$", "");;
+            ShortBuffer audioSamplesBuffer = ShortBuffer.allocate(1024 * 1024);
 
             int frameCount = 0;
             int p = 0;
@@ -182,7 +93,10 @@ public class VideoProcessor {
             int startFrame = 0;
             int endFrame = 0;
             int shots = 0;
-
+            int lastPos = 0;
+            double startTime = 0;
+            double endTime = 0;
+            ArrayList<Double> motionSignature = new ArrayList<>();
             while ((currentFrame = frameGrabber.grabImage()) != null){
 
                 AudioProcess audioProcess = new AudioProcess(path);
@@ -192,14 +106,43 @@ public class VideoProcessor {
                 c++;
                 p++;
                 endFrame = p;
-                if(currentImage != null && currentFrame.keyFrame && ShotBoundaryDetails.combinedDiff(previousImage, currentImage, 0.7, 0.3, path,
-                        startFrame, endFrame)){
-                    audioProcess.createAudioSignatureShots(startFrame, endFrame, curSample);
-                    startFrame = endFrame;
-                    System.out.println("Processing previous frame: " + p);
-                    System.out.println("Processing current frame: " + c);
-    //              ImageIO.write(currentImage, "png", new File("video_tmp\\" + c + ".png"));
-                    shots++;
+
+                if(currentImage != null){
+//                    if(previousFrame.samples != null){
+//                        getSampleShot(previousFrame, audioSamplesBuffer);
+//                        System.out.println("flag");
+//                    }
+                    if(currentFrame != null && previousFrame != null){
+                        motionSignature.add(MotionProcessor.computeMotionStatisticsShots(previousFrame, currentFrame));
+                    }
+                    if(currentFrame.keyFrame && ShotBoundaryDetails.combinedDiff(previousImage, currentImage, 0.7, 0.3, path,
+                            startFrame, endFrame)){
+                        saveMotionSignature("D:\\USC\\CSCI576\\CSCI576Project\\Project\\signature\\"+fileName+"_shot_" + shots + "_signature.csv", motionSignature);
+                        motionSignature = new ArrayList<Double>();
+//                        //save current position
+//                        int currentPos = audioSamplesBuffer.position();
+//                        //Set the readable range of buffer
+//                        audioSamplesBuffer.position(lastPos);
+//                        audioSamplesBuffer.limit(currentPos);
+//                        //Read the data from lastPos to currentPos
+//                        short[] curSample = new short[audioSamplesBuffer.remaining()];
+//                        System.out.println(Arrays.toString(curSample));
+//                        audioSamplesBuffer.get(curSample);
+//                        //Process the audio data
+//                        audioProcess.createAudioSignatureShots(startFrame, endFrame, curSample, wavPath, shots);
+//                        //Reset the buffer to write mode and write the data start from currentPos
+//                        audioSamplesBuffer.limit(audioSamplesBuffer.capacity());
+//                        audioSamplesBuffer.position(currentPos);
+//                        //Update the last position of buffer
+//                        lastPos = currentPos;
+
+                        startFrame = endFrame;
+//                        System.out.println("Processing previous frame: " + p);
+//                        System.out.println("Processing current frame: " + c);
+                        //              ImageIO.write(currentImage, "png", new File("video_tmp\\" + c + ".png"));
+                        shots++;
+                    }
+
 //                    System.out.println("Processing previous frame: " + p);
 //                    System.out.println("RGB of previous frame first pixel: " + previousImage.getRGB(0, 0));
 //                    ImageIO.write(previousImage, "png", new File("video_tmp\\" + c + ".png"));
@@ -219,7 +162,6 @@ public class VideoProcessor {
                     short[] samples = new short[shortBuffer.capacity()];
                     shortBuffer.get(samples);
 
-
                 }
                 currentImage = converter.getBufferedImage(currentFrame);
                 if (currentImage != null && currentFrame.keyFrame && ShotBoundaryDetails.combinedDiff(previousImage, currentImage, 0.7, 0.3, path,
@@ -229,9 +171,9 @@ public class VideoProcessor {
                 }
                 frameCount++;
             }
-
+            saveMotionSignature("D:\\USC\\CSCI576\\CSCI576Project\\Project\\signature\\"+fileName+"_shot_" + shots + "_signature.csv", motionSignature);
             System.out.println("Total frames processed: " + frameCount);
-            System.out.println("Total shots found: " + (shots/2));
+            System.out.println("Total shots found: " + shots);
             frameGrabber.stop();
             frameGrabber2.stop();
             frameGrabber2.release();
@@ -241,45 +183,16 @@ public class VideoProcessor {
     }
 
 
-//    public static void processVideo(String path) {
-//        try (FFmpegFrameGrabber frameGrabber = new FFmpegFrameGrabber(path)) {
-//            frameGrabber.start();
-//
-//            Java2DFrameConverter converter = new Java2DFrameConverter();
-//            LinkedList<Frame> frameWindow = new LinkedList<>();
-//            final int WINDOW_SIZE = 5; // 滑动窗口大小
-//
-//            Frame frame;
-//            while ((frame = frameGrabber.grabImage()) != null) {
-//                frameWindow.add(frame);
-//                System.out.println(frameWindow.size());
-//                // 当窗口满时进行处理
-//                if (frameWindow.size() == WINDOW_SIZE) {
-//                    // 分析帧窗口中的帧
-//                    processFrameWindow(frameWindow, converter);
-//
-//                    // 移除最旧的帧，为下一帧留空间
-//                    frameWindow.removeFirst();
-//                }
-//            }
-//
-//            frameGrabber.stop();
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//    }
-//
-//    private static void processFrameWindow(LinkedList<Frame> frameWindow, Java2DFrameConverter converter) {
-//        // 在这里实现你的帧窗口分析逻辑
-//        // 例如，比较第一帧和最后一帧的差异
-//        BufferedImage firstImage = converter.convert(frameWindow.getFirst());
-//        BufferedImage lastImage = converter.convert(frameWindow.getLast());
-//        System.out.println("RGB of current frame firstImage pixel: " + firstImage.getRGB(10, 10));
-//        System.out.println("RGB of next frame lastImage pixel: " + lastImage.getRGB(10, 10));
-//        System.out.println(" ");
-//        ShotBoundaryDetails.combinedDiff(firstImage, lastImage, 0, 0);
-//        // 根据差异进行进一步处理
-//    }
+    private void saveMotionSignature(String fileName, ArrayList<Double> motionSignature) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
+            for (Double value : motionSignature) {
+                writer.write(value.toString());
+                writer.newLine(); // 每个值后面添加换行符
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
 }
 
