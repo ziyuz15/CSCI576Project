@@ -98,6 +98,49 @@ public class AudioProcess {
     }
 
     /**
+     * get audio sample for shot boundary
+     * @param videoIndex index of the input file
+     * @param startTime start time, should be seconds
+     * @param endTime end time, should be seconds
+     * @return return the left sample for the required time duration
+     */
+    private short[] getSample(int videoIndex, double startTime, double endTime){
+        String shotFilePath = filePath + "video" + videoIndex + ".wav";
+        System.out.println("path: " + shotFilePath);
+        try (AudioInputStream audioStream = AudioSystem.getAudioInputStream(new File(shotFilePath))) {
+            AudioFormat format = audioStream.getFormat();
+
+            double durationInSeconds = audioStream.getFrameLength() / format.getFrameRate();
+
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buffer = new byte[1024];
+            int read;
+            while ((read = audioStream.read(buffer)) != -1) {
+                out.write(buffer, 0, read);
+            }
+            byte[] audioBytes = out.toByteArray();
+
+            ShortBuffer shortBuffer = ByteBuffer.wrap(audioBytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer();
+            short[] samples = new short[audioBytes.length / 2];
+            shortBuffer.get(samples);
+
+
+            int sampleStart = (int) (samples.length * startTime / durationInSeconds);
+            int sampleEnd = (int) (samples.length * endTime / durationInSeconds);
+
+            short[] samplesLeft = new short[sampleEnd - sampleStart + 1];
+
+            for (int i = sampleStart; i < sampleEnd + 1; i++) {
+                samplesLeft[i - sampleStart] = samples[2 * i];
+            }
+
+            return samplesLeft;
+        } catch (UnsupportedAudioFileException | IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
      * calculate the Euclidean distance between two frames.
      * @param magnitudeData1 the first magnitude data array
      * @param magnitudeData2 the second magnitude data array
@@ -325,6 +368,22 @@ public class AudioProcess {
         saveMagnitudeDataShot(path, shots, curArray);
         System.out.println("Shots loaded");
 
+    }
+
+    /**
+     * get the audio signatures for shot boundary
+     * @param fileIndex index of input file
+     * @param startTime start time (should be seconds)
+     * @param endTime end time (should be seconds)
+     * @return return the generated signatures
+     */
+    public double[][] createAudioSignatureForShots(int fileIndex, double startTime, double endTime){
+        short[] curSample = getSample(fileIndex, startTime, endTime);
+        int ite_ct = curSample.length / (FRAME_SIZE - OVERLAP);
+        double[][] audioSigForShot = new double[ite_ct][512];
+        getMagnitude(curSample, curSample.length, audioSigForShot);
+
+        return audioSigForShot;
     }
 
     private void createAudioSignature(){
