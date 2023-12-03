@@ -233,12 +233,12 @@ public class ShotBoundaryDetails {
         String signature;
 
         if(weightedScore >= 0.75){
-            System.out.println("pixel: "+ pixelxDiffScore);
-            System.out.println("hsv: "+ hsvDiffSocre);
-            System.out.println("weightedScore: "+ weightedScore);
-            System.out.println(" ");
-            signature = createSignature(ShotBoundaryDetails, pixelxDiffScore, startFrame, endFrame);
-            appendSceneSignatureToFile(fileName, signature, "signatures.csv");
+//            System.out.println("pixel: "+ pixelxDiffScore);
+//            System.out.println("hsv: "+ hsvDiffSocre);
+//            System.out.println("weightedScore: "+ weightedScore);
+//            System.out.println(" ");
+//            signature = createSignature(ShotBoundaryDetails, pixelxDiffScore, startFrame, endFrame);
+//            appendSceneSignatureToFile(fileName, signature, "signatures.csv");
             return true;
         }
         return  false;

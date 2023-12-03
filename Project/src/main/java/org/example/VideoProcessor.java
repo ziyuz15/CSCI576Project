@@ -1,23 +1,20 @@
 package org.example;
-//package videoProcessing.src;
+
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import javax.swing.*;
 import java.nio.ShortBuffer;
 import java.util.*;
-import java.util.List;
-import javax.imageio.ImageIO;
 
-import org.bytedeco.javacv.*;
+
+
 import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.bytedeco.javacv.Java2DFrameConverter;
 import org.bytedeco.javacv.Frame;
 
-import static org.example.AudioProcess.getSampleShot;
 
 /**
  * This class contains the basic video and audio process functions.
@@ -33,7 +30,7 @@ public class VideoProcessor {
 
     private static final int FRAME_SIZE = 1024; // frame size of Fast Fourier Transform(FFT)
     private static final int OVERLAP = 512; // overlap size of Fast Fourier Transform(FFT)
-
+    AudioProcess audioProcess = new AudioProcess("D:\\USC\\CSCI576\\Audios_Test\\");
     private static void createAndShowGUI() {
         // 创建 JFrame 实例
         JFrame frame = new JFrame("Video Frame Comparison");
@@ -71,7 +68,7 @@ public class VideoProcessor {
      * The function is used for extraing and excuting the processing the frames of Video and Audio from MP4 files.
      * @param path
      */
-    public void processVideo(String path) {
+    public void processVideo(String path, int index) {
         try (FFmpegFrameGrabber frameGrabber = new FFmpegFrameGrabber(path)) {
             frameGrabber.start();
             FFmpegFrameGrabber frameGrabber2 = new FFmpegFrameGrabber(path);
@@ -84,8 +81,10 @@ public class VideoProcessor {
             BufferedImage previousImage = null;
             BufferedImage currentImage = converter.getBufferedImage(currentFrame);
             String wavPath = path.replaceAll("\\.mp4$", "");
-            String fileName = path.substring(path.lastIndexOf("\\") + 1).replaceAll("\\.mp4$", "");;
+            String fileName = path.substring(path.lastIndexOf("\\") + 1).replaceAll("\\.mp4$", "");
+
             ShortBuffer audioSamplesBuffer = ShortBuffer.allocate(1024 * 1024);
+            double[][] signature;
 
             int frameCount = 0;
             int p = 0;
@@ -96,10 +95,10 @@ public class VideoProcessor {
             int lastPos = 0;
             double startTime = 0;
             double endTime = 0;
+
             ArrayList<Double> motionSignature = new ArrayList<>();
             while ((currentFrame = frameGrabber.grabImage()) != null){
 
-                AudioProcess audioProcess = new AudioProcess(path);
                 previousFrame = frameGrabber2.grabImage();
                 previousImage = converter2.getBufferedImage(previousFrame);
                 currentImage = converter.getBufferedImage(currentFrame);
@@ -112,35 +111,20 @@ public class VideoProcessor {
 //                        getSampleShot(previousFrame, audioSamplesBuffer);
 //                        System.out.println("flag");
 //                    }
-                    if(currentFrame != null && previousFrame != null){
-                        motionSignature.add(MotionProcessor.computeMotionStatisticsShots(previousFrame, currentFrame));
-                    }
+//                    if(currentFrame != null && previousFrame != null){
+//                        motionSignature.add(MotionProcessor.computeMotionStatisticsShots(previousFrame, currentFrame));
+//                    }
                     if(currentFrame.keyFrame && ShotBoundaryDetails.combinedDiff(previousImage, currentImage, 0.7, 0.3, path,
                             startFrame, endFrame)){
-                        saveMotionSignature("D:\\USC\\CSCI576\\CSCI576Project\\Project\\signature\\"+fileName+"_shot_" + shots + "_signature.csv", motionSignature);
-                        motionSignature = new ArrayList<Double>();
-//                        //save current position
-//                        int currentPos = audioSamplesBuffer.position();
-//                        //Set the readable range of buffer
-//                        audioSamplesBuffer.position(lastPos);
-//                        audioSamplesBuffer.limit(currentPos);
-//                        //Read the data from lastPos to currentPos
-//                        short[] curSample = new short[audioSamplesBuffer.remaining()];
-//                        System.out.println(Arrays.toString(curSample));
-//                        audioSamplesBuffer.get(curSample);
-//                        //Process the audio data
-//                        audioProcess.createAudioSignatureShots(startFrame, endFrame, curSample, wavPath, shots);
-//                        //Reset the buffer to write mode and write the data start from currentPos
-//                        audioSamplesBuffer.limit(audioSamplesBuffer.capacity());
-//                        audioSamplesBuffer.position(currentPos);
-//                        //Update the last position of buffer
-//                        lastPos = currentPos;
-
+//                        saveMotionSignature("D:\\USC\\CSCI576\\CSCI576Project\\Project\\signature\\"+fileName+"_shot_" + shots + "_signature.csv", motionSignature);
+//                        motionSignature = new ArrayList<Double>();
+                        endTime = previousFrame.timestamp / 1_000_000.0;
                         startFrame = endFrame;
-//                        System.out.println("Processing previous frame: " + p);
-//                        System.out.println("Processing current frame: " + c);
-                        //              ImageIO.write(currentImage, "png", new File("video_tmp\\" + c + ".png"));
+                        signature = audioProcess.createAudioSignatureForShots(index, startTime, endTime);
+                        startTime = currentFrame.timestamp / 1_000_000.0;
                         shots++;
+
+                        audioProcess.saveMagnitudeDataShot("D:\\USC\\CSCI576\\CSCI576Project\\Project\\signature", index, shots, signature);
                     }
 
 //                    System.out.println("Processing previous frame: " + p);
@@ -157,12 +141,7 @@ public class VideoProcessor {
 
             currentFrame = frameGrabber2.grabImage();
             if (currentFrame != null) {
-                if(currentFrame.samples != null){
-                    ShortBuffer shortBuffer = (ShortBuffer)currentFrame.samples[0];
-                    short[] samples = new short[shortBuffer.capacity()];
-                    shortBuffer.get(samples);
 
-                }
                 currentImage = converter.getBufferedImage(currentFrame);
                 if (currentImage != null && currentFrame.keyFrame && ShotBoundaryDetails.combinedDiff(previousImage, currentImage, 0.7, 0.3, path,
                         startFrame, endFrame)) {
@@ -171,8 +150,12 @@ public class VideoProcessor {
                 }
                 frameCount++;
             }
-            saveMotionSignature("D:\\USC\\CSCI576\\CSCI576Project\\Project\\signature\\"+fileName+"_shot_" + shots + "_signature.csv", motionSignature);
-            System.out.println("Total frames processed: " + frameCount);
+            endTime = previousFrame.timestamp / 1_000_000.0;
+            signature = audioProcess.createAudioSignatureForShots(index, startTime, endTime);
+            shots++;
+            audioProcess.saveMagnitudeDataShot("D:\\USC\\CSCI576\\CSCI576Project\\Project\\signature", index, shots, signature);
+//            saveMotionSignature("D:\\USC\\CSCI576\\CSCI576Project\\Project\\signature\\"+fileName+"_shot_" + shots + "_signature.csv", motionSignature);
+//            System.out.println("Total frames processed: " + frameCount);
             System.out.println("Total shots found: " + shots);
             frameGrabber.stop();
             frameGrabber2.stop();

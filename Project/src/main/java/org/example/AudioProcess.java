@@ -1,7 +1,7 @@
 package org.example;
 
 import org.bytedeco.javacv.Frame;
-import org.jtransforms.fft.DoubleFFT_1D;
+import org.jtransforms.fft.*;
 
 import javax.sound.sampled.*;
 import java.io.*;
@@ -26,7 +26,7 @@ public class AudioProcess {
     private static final double ratio = 0.5;
     private static final int OVERLAP = 512; // overlap size of Fast Fourier Transform(FFT)
     private ArrayList<double[][]> magnitudeSpectrumList; // list of audio signatures
-    private static final int TOTAL_FILE_NUMS = 11; // num of all audio files
+    private static final int TOTAL_FILE_NUMS = 12; // num of all audio files
     private String filePath;
 
     public AudioProcess(String filePath) {
@@ -109,6 +109,7 @@ public class AudioProcess {
         System.out.println("path: " + shotFilePath);
         try (AudioInputStream audioStream = AudioSystem.getAudioInputStream(new File(shotFilePath))) {
             AudioFormat format = audioStream.getFormat();
+            int channels = format.getChannels(); // 获取音频通道数
 
             double durationInSeconds = audioStream.getFrameLength() / format.getFrameRate();
 
@@ -124,14 +125,18 @@ public class AudioProcess {
             short[] samples = new short[audioBytes.length / 2];
             shortBuffer.get(samples);
 
+            int sampleStart = (int) (format.getFrameRate() * startTime * channels);
+            int sampleEnd = (int) (format.getFrameRate() * endTime * channels);
 
-            int sampleStart = (int) (samples.length * startTime / durationInSeconds);
-            int sampleEnd = (int) (samples.length * endTime / durationInSeconds);
+            short[] samplesLeft = new short[sampleEnd - sampleStart];
 
-            short[] samplesLeft = new short[sampleEnd - sampleStart + 1];
-
-            for (int i = sampleStart; i < sampleEnd + 1; i++) {
-                samplesLeft[i - sampleStart] = samples[2 * i];
+            for (int i = sampleStart; i < sampleEnd; i++) {
+                if (i < samples.length) {
+                    samplesLeft[i - sampleStart] = samples[i];
+                } else {
+                    // 处理索引超出范围的情况
+                    break;
+                }
             }
 
             return samplesLeft;
@@ -305,10 +310,13 @@ public class AudioProcess {
             }
 
         }
+
         long endTime = System.currentTimeMillis();
         long executionDuration = endTime - startTime;
         System.out.println("Execution Duration: " + executionDuration);
         System.out.println("Video " + finalVideo +  "; start time: " + minStart / 44100.0);
+
+        playAudio((long) (minStart / 44100.0), filePath+"\\"+"Video"+finalVideo+".wav");
     }
 
 
@@ -324,7 +332,8 @@ public class AudioProcess {
 
             AudioFormat format = audioStream.getFormat();
             int frameSize = format.getFrameSize();
-            long bytesToSkip = (long)(startTime * frameSize);
+            long bytesPerSecond = (long) (format.getFrameSize() * format.getSampleRate());
+            long bytesToSkip = (long)(startTime * bytesPerSecond);
 
             audioStream.skip(bytesToSkip);
 
@@ -340,11 +349,11 @@ public class AudioProcess {
             });
 
             clip.start();
-            Thread.sleep(1000000);
+            Thread.sleep(100000);
 
         } catch (UnsupportedAudioFileException | IOException | LineUnavailableException | InterruptedException e) {
         e.printStackTrace();
-    }
+        }
     }
 
     /**
@@ -365,7 +374,7 @@ public class AudioProcess {
         System.out.println("s: "+ startFrame + " e: "+ endFrame + " frame_size: "+ frameSize + " curSample.length:" + curSample.length);
         getMagnitudeShot(curSample, curSample.length, curArray, frameSize, overLap);
         magnitudeSpectrumList.add(curArray);
-        saveMagnitudeDataShot(path, shots, curArray);
+//        saveMagnitudeDataShot(path, shots, curArray);
         System.out.println("Shots loaded");
 
     }
@@ -427,8 +436,14 @@ public class AudioProcess {
      * @param path
      * @param magnitudeData magnitude data
      */
-    private void saveMagnitudeDataShot(String path, int shots, double[][] magnitudeData){
-        String curFilePath = path+ shots +".csv";
+    public void saveMagnitudeDataShot(String path, int index, int shots, double[][] magnitudeData){
+        if (!path.endsWith(File.separator)) {
+            path += File.separator;
+        }
+
+        // 构建文件完整路径
+        String curFilePath = path + index +"signature" + shots + ".csv";
+
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(curFilePath))) {
             for (double[] row : magnitudeData) {
                 String[] stringRow = new String[row.length];
@@ -483,4 +498,21 @@ public class AudioProcess {
         matchAudio(sampleLeft);
 
     }
+    private static double[][] readCsvFile(String filePath) throws IOException {
+        List<double[]> data = new ArrayList<>();
+        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] values = line.split(",");
+                double[] row = new double[values.length];
+                for (int i = 0; i < values.length; i++) {
+                    row[i] = Double.parseDouble(values[i]);
+                }
+                data.add(row);
+            }
+        }
+        return data.toArray(new double[0][]);
+    }
+
+
 }
