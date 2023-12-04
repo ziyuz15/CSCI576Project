@@ -65,6 +65,7 @@ public class VideoProcessor {
         return rgb;
     }
     public static int processVideo(String path, double time, String queryPath){
+        long startTime = System.nanoTime();
         int exactFrame = 0;
         try (FFmpegFrameGrabber frameGrabber = new FFmpegFrameGrabber(path)) {
             frameGrabber.start();
@@ -94,7 +95,15 @@ public class VideoProcessor {
             if(videoFrame == null){
                 System.out.println("videoFrame is null");
             }
-            if(ShotBoundaryDetails.pixelxDiff(queryImage,videoImage) < 0.01){
+            System.out.println("Different Pixels Percentage: " + ShotBoundaryDetails.pixelxDiff(queryImage,videoImage) * 100 + " %");
+            if(ShotBoundaryDetails.pixelxDiff(queryImage,videoImage) < 0.05){
+                long endTime = System.nanoTime();
+                long excuteTime = endTime - startTime;
+                System.out.println("----------------------------------");
+                System.out.println("");
+                System.out.println("Pixel Difference matching running time: "+ excuteTime / 1_000_000_000.0 + "s");
+                System.out.println("");
+                System.out.println("----------------------------------");
                 return frameNum;
             }
             frameGrabber.setVideoFrameNumber(frameNum - 30);
@@ -118,7 +127,13 @@ public class VideoProcessor {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
+        long endTime = System.nanoTime();
+        long excuteTime = endTime - startTime;
+        System.out.println("----------------------------------");
+        System.out.println("");
+        System.out.println("Pixel Difference matching running time: "+ excuteTime / 1_000_000_000.0 + "s");
+        System.out.println("");
+        System.out.println("----------------------------------");
         return exactFrame;
     }
     /**

@@ -585,7 +585,15 @@ public class AudioProcess {
         loadSignature();
         short[] sampleLeft = getSample(filePath + queryAudioFileName);
         //createAudioSignature();
+        long startTime = System.nanoTime();
         indexAndStartTime = matchAudio(sampleLeft);
+        long endTime = System.nanoTime();
+        long excuteTime = endTime - startTime;
+        System.out.println("----------------------------------");
+        System.out.println("");
+        System.out.println("Audio matching running time: "+ excuteTime / 1_000_000_000.0 + "s");
+        System.out.println("");
+        System.out.println("----------------------------------");
         return indexAndStartTime;
     }
 

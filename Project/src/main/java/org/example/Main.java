@@ -21,8 +21,10 @@ public class Main {
         long endTime = System.nanoTime();
         long duration = endTime - startTime;
 
-
-        System.out.println("Running Time: " + duration + "ns / " + duration / 1_000_000_000.0 + "s");
+        System.out.println(" ");
+        System.out.println("Total Running Time: " + duration + "ns / " + duration / 1_000_000_000.0 + "s");
+        System.out.println(" ");
+        System.out.println("----------------------------------");
         System.out.println("Find Frame Number: " + frameNum);
     }
 //    public static void main(String[] args) {
