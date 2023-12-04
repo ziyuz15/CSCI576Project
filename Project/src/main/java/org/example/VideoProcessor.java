@@ -91,7 +91,6 @@ public class VideoProcessor {
             videoImage = converter.getBufferedImage(videoFrame);
             System.out.println(ShotBoundaryDetails.pixelxDiff(queryImage,videoImage));
             if(ShotBoundaryDetails.pixelxDiff(queryImage,videoImage) < 0.01){
-                System.out.println("find frames: " + frameNum);
                 return frameNum;
             }
             frameGrabber.setVideoFrameNumber(frameNum - 30);

@@ -10,12 +10,14 @@ public class Main {
 //        for(int i = 1; i <= 20; i++){
 //            videoProcessor.processVideo("D:\\USC\\CSCI576\\Videos\\video"+i+".mp4", i);
 //        }
-
+        String audioName = "video5_1.wav";
+        String videoName = "video5_1.wav".replaceAll("\\.wav$", "");
 //        videoProcessor.processVideo("D:\\USC\\CSCI576\\Videos\\video11.mp4");
-        int frameNum = videoProcessor.processVideo("D:\\USC\\CSCI576\\Videos\\video7.mp4",442.21866666666665,"D:\\USC\\CSCI576\\Queries\\video7_1.mp4");
+        AudioProcess audioProcess = new AudioProcess("D:\\USC\\CSCI576\\Audios_Test\\");
+        double[] result = audioProcess.processAudio(audioName);
+        int frameNum = videoProcessor.processVideo("D:\\USC\\CSCI576\\Videos\\video"+(int)result[0]+".mp4",result[1],"D:\\USC\\CSCI576\\Queries\\"+videoName+".mp4");
 //        MotionProcessor.compareVideosShots("D:\\USC\\CSCI576\\Queries\\video2_1.mp4");
-//        AudioProcess audioProcess = new AudioProcess("D:\\USC\\CSCI576\\Audios_Test\\");
-//        audioProcess.processAudio("video7_2.wav");
+
         long endTime = System.nanoTime();
         long duration = endTime - startTime;
 
