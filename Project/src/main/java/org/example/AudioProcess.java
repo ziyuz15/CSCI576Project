@@ -22,12 +22,14 @@ import java.util.List;
  */
 public class AudioProcess {
     private static final int FRAME_SIZE = 1024; // frame size of Fast Fourier Transform(FFT)
-
     private static final double ratio = 0.5;
     private static final int OVERLAP = 512; // overlap size of Fast Fourier Transform(FFT)
     private ArrayList<double[][]> magnitudeSpectrumList; // list of audio signatures
-    private static final int TOTAL_FILE_NUMS = 12; // num of all audio files
+    private static final int TOTAL_FILE_NUMS = 20; // num of all audio files
     private String filePath;
+    private float FRAME_RATE = 0.0f;
+    private static final int FRAME_OFFSET = 15;
+    private static final int FRACTION = 20;
 
     public AudioProcess(String filePath) {
         this.filePath = filePath;
@@ -41,7 +43,10 @@ public class AudioProcess {
 
     private short[] getSample(String querySamplePath) {
         try (AudioInputStream audioStream = AudioSystem.getAudioInputStream(new File(querySamplePath))) {
+            AudioFormat format = audioStream.getFormat();
+            FRAME_RATE = format.getFrameRate();
             ByteArrayOutputStream out = new ByteArrayOutputStream();
+
             byte[] buffer = new byte[1024];
             int read;
             while ((read = audioStream.read(buffer)) != -1) {
@@ -53,13 +58,13 @@ public class AudioProcess {
             short[] samples = new short[audioBytes.length / 2];
             shortBuffer.get(samples);
 
-            short[] samplesLeft = new short[samples.length / 2];
+            short[] samplesAvg = new short[samples.length / 2];
 
             for (int i = 0; i < samples.length / 2; i++) {
-                samplesLeft[i] = samples[2 * i];
+                samplesAvg[i] = (short) ((samples[2 * i + 1] + samples[2 * i]) / 2);
             }
 
-            return samplesLeft;
+            return samplesAvg;
         } catch (UnsupportedAudioFileException | IOException e) {
             throw new RuntimeException(e);
         }
@@ -153,7 +158,7 @@ public class AudioProcess {
      * */
     private double calculateEuclideanDistance(double[] magnitudeData1, double[] magnitudeData2) {
         double sum = 0.0;
-        for (int i = 0; i < magnitudeData1.length; i++) {
+        for (int i = 0; i < magnitudeData2.length; i++) {
             sum += Math.pow(magnitudeData1[i] - magnitudeData2[i], 2);
         }
         return Math.sqrt(sum);
@@ -217,15 +222,37 @@ public class AudioProcess {
      * @param magnitudeSpectrumArray store the magnitude spectrum to the given array
      */
     private void getMagnitude(short[] sample, int range, double[][] magnitudeSpectrumArray){
-        double[] magnitudeSpectrum = new double[FRAME_SIZE / 2];
+        double[] magnitudeSpectrum = new double[(int) FRAME_SIZE / FRACTION];
         if (range == 0){
-            for(int start = 0; start < FRAME_SIZE; start += FRAME_SIZE - OVERLAP) {
+//            double curAvg = 0.0;
+//            int start = 0;
+//            while (curAvg < 2000){
+//                double curSum  = 0.0;
+//                short[] frame = Arrays.copyOfRange(sample, start, start + FRAME_SIZE);
+//                double[] fftResult = new double[FRAME_SIZE * 2];
+//                FFT(frame, fftResult);
+//                for(int i = 0; i < magnitudeSpectrum.length; i++) {
+//                    magnitudeSpectrumArray[0][i] = Math.sqrt(fftResult[2 * i] * fftResult[2 * i] + fftResult[2 * i + 1] * fftResult[2 * i + 1]);
+//                    curSum += magnitudeSpectrumArray[0][i];
+//                }
+//                curAvg = curSum / FRAME_SIZE;
+//                start += FRAME_SIZE - OVERLAP;
+//            }
+//            offSet = start / 44100.0;
+//            System.out.println("offset: " + offSet);
+
+            for(int start = 0; start < FRAME_SIZE*FRAME_OFFSET; start += FRAME_SIZE - OVERLAP) {
                 short[] frame = Arrays.copyOfRange(sample, start, start + FRAME_SIZE);
                 double[] fftResult = new double[FRAME_SIZE * 2];
                 FFT(frame, fftResult);
                 for(int i = 0; i < magnitudeSpectrum.length; i++) {
                     magnitudeSpectrumArray[0][i] = Math.sqrt(fftResult[2 * i] * fftResult[2 * i] + fftResult[2 * i + 1] * fftResult[2 * i + 1]);
                 }
+            }
+            double cursum = 0.0;
+            for (int k = 0; k < magnitudeSpectrumArray[0].length; k++){
+                //System.out.print(magnitudeSpectrumArray[0][k] + " | ");
+                cursum += magnitudeSpectrumArray[0][k];
             }
         }else {
             int j = 0;
@@ -284,9 +311,8 @@ public class AudioProcess {
         long startTime = System.currentTimeMillis();
         double[] returnArray = new double[2];
 
-        double[][] firstMagnitudeArray = new double[1][512];
+        double[][] firstMagnitudeArray = new double[1][FRAME_SIZE];
         getMagnitude(querySample, 0, firstMagnitudeArray);
-        saveMagnitudeData(3, firstMagnitudeArray);
         double[] firstMagnitude = firstMagnitudeArray[0];
 
         double minDistance = Double.POSITIVE_INFINITY;
@@ -311,15 +337,15 @@ public class AudioProcess {
             }
 
         }
-
         long endTime = System.currentTimeMillis();
         long executionDuration = endTime - startTime;
-        System.out.println("Execution Duration: " + executionDuration);
-        System.out.println("Video " + finalVideo +  "; start time: " + minStart / 44100.0);
+        double offSet = FRAME_SIZE * (FRAME_OFFSET - 1) / FRAME_RATE;
+        System.out.println("Execution Duration: " + executionDuration + " ms");
+        System.out.println("Video " + finalVideo +  "; start time: " + (minStart / FRAME_RATE - offSet));
         returnArray[0] = finalVideo;
-        returnArray[1] = startTime;
+        returnArray[1] = minStart;
 
-        playAudio((long) (minStart / 44100.0), filePath+"\\"+"Video"+finalVideo+".wav");
+        //playAudio((long) (minStart / 44100.0), filePath+"\\"+"Video"+finalVideo+".wav");
         return  returnArray;
     }
 
@@ -420,8 +446,16 @@ public class AudioProcess {
      * @param magnitudeData magnitude data
      */
     private void saveMagnitudeData(int fileIndex, double[][] magnitudeData){
-        String curFilePath = filePath + "AudioSignature" + fileIndex +".csv";
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(curFilePath))) {
+        String curFilePath = filePath + "AudioSignature.csv";
+        //append
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(curFilePath, true))) {
+            String firstRow[] = new String[magnitudeData[0].length];
+            firstRow[0] = "" + fileIndex;
+            firstRow[1] = "" + magnitudeData.length;
+            String firstLine = String.join(",", firstRow);
+            writer.write(firstLine);
+            writer.newLine();
+
             for (double[] row : magnitudeData) {
                 String[] stringRow = new String[row.length];
                 for (int j = 0; j < row.length; j++) {
@@ -491,6 +525,54 @@ public class AudioProcess {
         return signatureData;
     }
 
+    private void loadSignature(){
+        long loadingStartTime = System.currentTimeMillis();
+        System.out.println("Audio Signature Loading... ");
+        String curFilePath = filePath + "AudioSignature.csv";
+        List<double[]> dataList = new ArrayList<>();
+        int fileIndex = 1;
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(curFilePath))) {
+            String line = reader.readLine();
+            String[] stringValues = line.split(",");
+            int totalLength = Integer.parseInt(stringValues[1]);
+            int curLength = totalLength;
+
+            while (curLength > 0){
+                line = reader.readLine();
+                stringValues = line.split(",");
+                double[] doubleValues = new double[stringValues.length];
+                for (int i = 0; i < stringValues.length; i++) {
+                    doubleValues[i] = Double.parseDouble(stringValues[i]);
+                }
+                dataList.add(doubleValues);
+                curLength -= 1;
+                if (curLength == 0){
+                    double[][] signatureData = new double[dataList.size()][stringValues.length];
+                    signatureData = dataList.toArray(signatureData);
+                    magnitudeSpectrumList.add(signatureData);
+                    dataList.clear();
+                    fileIndex += 1;
+                    if (fileIndex > TOTAL_FILE_NUMS){
+                        break;
+                    }
+
+                    line = reader.readLine();
+                    stringValues = line.split(",");
+                    totalLength = Integer.parseInt(stringValues[1]);
+                    curLength = totalLength;
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("Audio Signature Loading Ends");
+        long loadingEndTime = System.currentTimeMillis();
+        System.out.println("Total Loading Time: " + (loadingEndTime - loadingStartTime) + " ms");
+    }
+
+
     /**
      * process query audio
      *
@@ -499,9 +581,10 @@ public class AudioProcess {
      */
     public double[] processAudio(String queryAudioFileName){
         double[] indexAndStartTime = new double[2];
-        short[] sampleLeft = getSample(filePath + queryAudioFileName);
         magnitudeSpectrumList = new ArrayList<>();
-        createAudioSignature();
+        loadSignature();
+        short[] sampleLeft = getSample(filePath + queryAudioFileName);
+        //createAudioSignature();
         indexAndStartTime = matchAudio(sampleLeft);
         return indexAndStartTime;
     }
