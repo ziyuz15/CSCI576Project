@@ -1,13 +1,14 @@
 import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.bytedeco.javacv.Java2DFrameConverter;
 import org.bytedeco.javacv.Frame;
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.nio.ShortBuffer;
+import javax.sound.sampled.*;
 
 public class VideoPlayerUI extends JFrame {
    private JButton playButton;
@@ -16,7 +17,8 @@ public class VideoPlayerUI extends JFrame {
    private JLabel displayLabel;
    private Thread videoThread;
    private FFmpegFrameGrabber frameGrabber;
-
+   // オーディオ再生用の変数
+   private SourceDataLine soundLine = null;
 
    public VideoPlayerUI(String matchedVideoPath, int matchedFrameIndex) {
       playButton = new JButton("Play");
@@ -40,7 +42,7 @@ public class VideoPlayerUI extends JFrame {
 
    public void playVideoFromFrame(String videoPath, int frameIndex) {
       if (videoThread != null && videoThread.isAlive()) {
-         return; // すでに再生中の場合は何もしない
+         return; // Do nothing if already playing
       }
 
       videoThread = new Thread(() -> {
@@ -49,7 +51,10 @@ public class VideoPlayerUI extends JFrame {
             frameGrabber.start();
             frameGrabber.setFrameNumber(frameIndex);
 
-            // フレームレートを取得してコンソールに表示
+            // Initialize audio line
+            initAudio(frameGrabber);
+
+            // Get and display frame rate
             double frameRate = frameGrabber.getFrameRate();
             System.out.println("Frame Rate: " + frameRate);
 
@@ -57,15 +62,24 @@ public class VideoPlayerUI extends JFrame {
             while ((frame = frameGrabber.grabFrame()) != null) {
                BufferedImage image = new Java2DFrameConverter().convert(frame);
                if (image != null) {
-                  long startTime = System.currentTimeMillis(); // 処理前の時刻
+                  long startTime = System.currentTimeMillis(); // Time before processing
 
                   ImageIcon icon = new ImageIcon(image);
                   displayLabel.setIcon(icon);
 
-                  long endTime = System.currentTimeMillis(); // 処理後の時刻
+                  long endTime = System.currentTimeMillis(); // Time after processing
                   System.out.println("UI update time: " + (endTime - startTime) + " ms");
 
                }
+               // Process audio frame
+               if (frame.samples != null) {
+                  ShortBuffer channelSamplesShortBuffer = (ShortBuffer) frame.samples[0];
+                  short[] samples = new short[channelSamplesShortBuffer.capacity()];
+                  channelSamplesShortBuffer.get(samples);
+                  byte[] data = shortToByte(samples);
+                  soundLine.write(data, 0, data.length);
+               }
+
                try {
                   long sleepTime = (long) (1000 / frameGrabber.getFrameRate());
                   System.out.println("SleepTime: "+sleepTime);
@@ -90,6 +104,28 @@ public class VideoPlayerUI extends JFrame {
    private void resetVideo(String videoPath) {
       pauseVideo();
       playVideoFromFrame(videoPath, 0);
+   }
+
+   private void initAudio(FFmpegFrameGrabber frameGrabber) {
+      try {
+         AudioFormat audioFormat = new AudioFormat(frameGrabber.getSampleRate(), 16, frameGrabber.getAudioChannels(), true, false);
+         DataLine.Info info = new DataLine.Info(SourceDataLine.class, audioFormat);
+         soundLine = (SourceDataLine) AudioSystem.getLine(info);
+         soundLine.open(audioFormat);
+         soundLine.start();
+      } catch (LineUnavailableException e) {
+         e.printStackTrace();
+         JOptionPane.showMessageDialog(this, "Unable to open audio line: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+      }
+   }
+
+   private byte[] shortToByte(short[] samples) {
+      byte[] data = new byte[samples.length * 2];
+      for (int i = 0; i < samples.length; i++) {
+         data[i * 2] = (byte) (samples[i] & 0xff);
+         data[i * 2 + 1] = (byte) ((samples[i] >> 8) & 0xff);
+      }
+      return data;
    }
 
 }
