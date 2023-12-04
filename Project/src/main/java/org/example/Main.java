@@ -11,7 +11,7 @@ public class Main {
 //            videoProcessor.processVideo("D:\\USC\\CSCI576\\Videos\\video"+i+".mp4", i);
 //        }
         String audioName = "video5_1.wav";
-        String videoName = "video5_1.wav".replaceAll("\\.wav$", "");
+        String videoName = audioName.replaceAll("\\.wav$", "");
 //        videoProcessor.processVideo("D:\\USC\\CSCI576\\Videos\\video11.mp4");
         AudioProcess audioProcess = new AudioProcess("D:\\USC\\CSCI576\\Audios_Test\\");
         double[] result = audioProcess.processAudio(audioName);

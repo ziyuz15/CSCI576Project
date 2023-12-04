@@ -73,23 +73,27 @@ public class VideoProcessor {
 
             Java2DFrameConverter converter = new Java2DFrameConverter();
             Java2DFrameConverter converter2 = new Java2DFrameConverter();
+
             Frame queryFrame = frameGrabber2.grabImage();
             Frame videoFrame;
             BufferedImage queryImage = converter2.getBufferedImage(queryFrame);
             BufferedImage videoImage;
-            String wavPath = path.replaceAll("\\.mp4$", "");
-            String fileName = path.substring(path.lastIndexOf("\\") + 1).replaceAll("\\.mp4$", "");
 
-            ShortBuffer audioSamplesBuffer = ShortBuffer.allocate(1024 * 1024);
-            double[][] signature;
             double minDistance = 100;
 
             int frameNum = ShotBoundaryDetails.convertTimeToFrameNum(30,time);
-            System.out.println(frameNum);
             frameGrabber.setVideoFrameNumber(frameNum);
-            videoFrame = frameGrabber.grab();
+            videoFrame = frameGrabber.grabImage();
             videoImage = converter.getBufferedImage(videoFrame);
-            System.out.println(ShotBoundaryDetails.pixelxDiff(queryImage,videoImage));
+            if(queryImage == null){
+                System.out.println("queryImage is null");
+            }
+            else if(videoImage == null){
+                System.out.println("videoImage is null");
+            }
+            if(videoFrame == null){
+                System.out.println("videoFrame is null");
+            }
             if(ShotBoundaryDetails.pixelxDiff(queryImage,videoImage) < 0.01){
                 return frameNum;
             }
@@ -114,6 +118,7 @@ public class VideoProcessor {
         } catch (Exception e) {
             e.printStackTrace();
         }
+
         return exactFrame;
     }
     /**

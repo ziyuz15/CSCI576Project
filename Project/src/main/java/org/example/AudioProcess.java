@@ -28,7 +28,7 @@ public class AudioProcess {
     private static final int TOTAL_FILE_NUMS = 20; // num of all audio files
     private String filePath;
     private float FRAME_RATE = 0.0f;
-    private static final int FRAME_OFFSET = 15;
+    private static final int FRAME_OFFSET = 16;
     private static final int FRACTION = 20;
 
     public AudioProcess(String filePath) {
@@ -343,7 +343,7 @@ public class AudioProcess {
         System.out.println("Execution Duration: " + executionDuration + " ms");
         System.out.println("Video " + finalVideo +  "; start time: " + (minStart / FRAME_RATE - offSet));
         returnArray[0] = finalVideo;
-        returnArray[1] = minStart;
+        returnArray[1] = minStart / FRAME_RATE - offSet;
 
         //playAudio((long) (minStart / 44100.0), filePath+"\\"+"Video"+finalVideo+".wav");
         return  returnArray;
