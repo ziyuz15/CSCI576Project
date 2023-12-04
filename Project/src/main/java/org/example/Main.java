@@ -9,7 +9,7 @@ public class Main {
 
         long startTime = System.nanoTime();
 
-        String audioName = "video10_1.wav";
+        String audioName = "video4_1.wav";
         String videoName = audioName.replaceAll("\\.wav$", "");
 
         AudioProcess audioProcess = new AudioProcess("D:\\USC\\CSCI576\\Audios_Test\\");
@@ -18,7 +18,8 @@ public class Main {
         audioProcess.loadSignature(magnitudeSpectrumList);
         //Get Matching result
         double[] result = audioProcess.processAudio(magnitudeSpectrumList, audioName);
-        int frameNum = videoProcessor.processVideo("D:\\USC\\CSCI576\\Videos\\video"+(int)result[0]+".mp4",result[1],"D:\\USC\\CSCI576\\Queries\\"+videoName+".mp4");
+//        int frameNum = videoProcessor.processVideoRGB("D:\\USC\\CSCI576\\Videos\\video"+(int)result[0]+".rgb",result[1],"D:\\USC\\CSCI576\\Queries\\"+videoName+".rgb");
+        int frameNum = videoProcessor.processVideoRGB("F:\\Videos\\video"+(int)result[0]+".rgb",result[1],"D:\\USC\\CSCI576\\Queries\\"+videoName+".rgb");
 
         long endTime = System.nanoTime();
         long duration = endTime - startTime;

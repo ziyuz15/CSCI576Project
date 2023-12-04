@@ -3,9 +3,11 @@ package org.example;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.BufferedWriter;
+import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import javax.swing.*;
+import java.nio.ByteBuffer;
 import java.nio.ShortBuffer;
 import java.util.*;
 
@@ -14,6 +16,9 @@ import java.util.*;
 import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.bytedeco.javacv.Java2DFrameConverter;
 import org.bytedeco.javacv.Frame;
+
+import static java.awt.image.ImageObserver.HEIGHT;
+import static java.awt.image.ImageObserver.WIDTH;
 
 
 /**
@@ -27,9 +32,11 @@ import org.bytedeco.javacv.Frame;
 public class VideoProcessor {
     private static JLabel label1 = new JLabel();
     private static JLabel label2 = new JLabel();
+    private static final int WIDTH = 352; // 帧宽度
+    private static final int HEIGHT = 288; // 帧高度
+    private static final int FRAME_SIZE = WIDTH * HEIGHT * 3; // 每帧的字节大小
+    private static final int FRAME_RATE = 30;
 
-    private static final int FRAME_SIZE = 1024; // frame size of Fast Fourier Transform(FFT)
-    private static final int OVERLAP = 512; // overlap size of Fast Fourier Transform(FFT)
     AudioProcess audioProcess = new AudioProcess("D:\\USC\\CSCI576\\Audios_Test\\");
     private static void createAndShowGUI() {
         // 创建 JFrame 实例
@@ -96,7 +103,10 @@ public class VideoProcessor {
                 System.out.println("videoFrame is null");
             }
             System.out.println("Different Pixels Percentage: " + ShotBoundaryDetails.pixelxDiff(queryImage,videoImage) * 100 + " %");
-            if(ShotBoundaryDetails.pixelxDiff(queryImage,videoImage) < 0.05){
+            System.out.println(frameNum);
+            System.out.println("ShotBoundaryDetails.hsvDiff(queryImage, videoImage): "+ ShotBoundaryDetails.hsvDiff(queryImage, videoImage));
+            System.out.println("combinedDiff: "+ ShotBoundaryDetails.combinedDiff(queryImage,videoImage, 0.1,0.9));
+            if(ShotBoundaryDetails.pixelxDiff(queryImage,videoImage) < 0.05 || ShotBoundaryDetails.hsvDiff(queryImage, videoImage) < 0.1){
                 long endTime = System.nanoTime();
                 long excuteTime = endTime - startTime;
                 System.out.println("----------------------------------");
@@ -104,7 +114,7 @@ public class VideoProcessor {
                 System.out.println("Pixel Difference matching running time: "+ excuteTime / 1_000_000_000.0 + "s");
                 System.out.println("");
                 System.out.println("----------------------------------");
-                frameGrabber.stop();
+
                 frameGrabber2.stop();
                 frameGrabber2.release();
                 return frameNum;
@@ -241,6 +251,90 @@ public class VideoProcessor {
     }
 
 
+    public static int processVideoRGB(String path, double time, String queryPath) {
+        long startTime = System.nanoTime();
+        int exactFrame = 0;
+        double minDistance = Double.MAX_VALUE;
+
+        try {
+            ByteBuffer queryBuffer = ByteBuffer.allocate(FRAME_SIZE);
+
+            // 读取查询帧
+            try (FileInputStream fisQuery = new FileInputStream(queryPath)) {
+                fisQuery.read(queryBuffer.array());
+            }
+            BufferedImage queryImage = convertToImage(queryBuffer);
+
+            // 计算目标帧数
+            int frameNum = (int) (time * FRAME_RATE) - 1;
+            System.out.println("frameNum: "+ (frameNum + 1));
+            try (FileInputStream fis = new FileInputStream(path)) {
+                fis.skip((long) frameNum * FRAME_SIZE); // 跳转到指定帧的位置
+
+                byte[] frameBytes = new byte[FRAME_SIZE];
+                int bytesRead = fis.read(frameBytes);
+                System.out.println(bytesRead);
+                if (bytesRead == FRAME_SIZE) {
+                    // 将字节数据转换为 BufferedImage 或其他格式
+                    // 例如，调用之前定义的 convertToImage 方法
+                    BufferedImage videoImage = convertToImage(ByteBuffer.wrap(frameBytes));
+                    System.out.println("pixelDiff : "+ ShotBoundaryDetails.pixelxDiff(queryImage, videoImage));
+                    if(ShotBoundaryDetails.pixelxDiff(queryImage, videoImage) < 0.05){
+                        long endTime = System.nanoTime();
+                        System.out.println("Video Match time: " + (endTime - startTime) / 1_000_000_000.0 + "s");
+                        return frameNum + 1;
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            int startFrame = Math.max(0, frameNum - 10); // 防止超出文件起始
+            int endFrame = frameNum + 10; // 可以添加逻辑以防止超出文件结束
+
+            // 遍历帧
+            try (FileInputStream fis = new FileInputStream(path)) {
+                fis.skip((long) startFrame * FRAME_SIZE);
+
+                for (int i = startFrame; i <= endFrame; i++) {
+                    ByteBuffer buffer = ByteBuffer.allocate(FRAME_SIZE);
+                    if (fis.read(buffer.array()) == -1) {
+                        break; // 文件结束
+                    }
+
+                    BufferedImage videoImage = convertToImage(buffer);
+
+                    if (videoImage != null && queryImage != null) {
+                        double tmp = ShotBoundaryDetails.pixelxDiff(queryImage, videoImage);
+                        if (tmp < minDistance) {
+                            exactFrame = i;
+                            minDistance = tmp;
+                        }
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        long endTime = System.nanoTime();
+        System.out.println("Video Match time: " + (endTime - startTime) / 1_000_000_000.0 + "s");
+        return exactFrame + 1;
+    }
+
+    private static BufferedImage convertToImage(ByteBuffer buffer) {
+        BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
+        for (int y = 0; y < HEIGHT; y++) {
+            for (int x = 0; x < WIDTH; x++) {
+                int r = buffer.get() & 0xFF;
+                int g = buffer.get() & 0xFF;
+                int b = buffer.get() & 0xFF;
+                int color = (r << 16) | (g << 8) | b;
+                image.setRGB(x, y, color);
+            }
+        }
+        return image;
+    }
     private void saveMotionSignature(String fileName, ArrayList<Double> motionSignature) {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName))) {
             for (Double value : motionSignature) {
