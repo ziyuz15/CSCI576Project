@@ -9,6 +9,7 @@
       <root url="jar://$PROJECT_DIR$/opencv.jar!/" />
       <root url="jar://$PROJECT_DIR$/openblas-windows-x86_64.jar!/" />
       <root url="jar://$PROJECT_DIR$/JTransforms-3.1-with-dependencies.jar!/" />
+      <root url="jar://$PROJECT_DIR$/mysql-connector-java-5.1.49.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />

@@ -104,6 +104,9 @@ public class VideoProcessor {
                 System.out.println("Pixel Difference matching running time: "+ excuteTime / 1_000_000_000.0 + "s");
                 System.out.println("");
                 System.out.println("----------------------------------");
+                frameGrabber.stop();
+                frameGrabber2.stop();
+                frameGrabber2.release();
                 return frameNum;
             }
             frameGrabber.setVideoFrameNumber(frameNum - 30);
