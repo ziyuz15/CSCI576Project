@@ -28,7 +28,7 @@ public class AudioProcess {
     private static final int TOTAL_FILE_NUMS = 20; // num of all audio files
     private String filePath;
     private float FRAME_RATE = 0.0f;
-    private static final int FRAME_OFFSET = 15;
+    private static final int FRAME_OFFSET = 16;
     private static final int FRACTION = 20;
 
     public AudioProcess(String filePath) {
