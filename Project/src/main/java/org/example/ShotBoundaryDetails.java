@@ -65,6 +65,9 @@ public class ShotBoundaryDetails {
 
         return (double)differentPixels / totalPixels;
     }
+    public static int convertTimeToFrameNum(int Hz, double time){
+        return (int)(Hz * time);
+    }
     public static Mat computeHSV(Mat image, int bins){
         Mat histogram = new Mat();
         IntPointer channels = new IntPointer(0); // 指向通道索引的指针
@@ -242,6 +245,14 @@ public class ShotBoundaryDetails {
             return true;
         }
         return  false;
+    }
+    public static double combinedDiff(BufferedImage buff1, BufferedImage buff2, double w1, double w2){
+        double pixelxDiffScore = pixelxDiff(buff1, buff2);
+        double hsvDiffSocre = hsvDiff(buff1, buff2);
+        double weightedScore = w1 * pixelxDiffScore + w2 * hsvDiffSocre;
+
+        return weightedScore;
+
     }
 
     public static String createSignature(ShotBoundaryDetails hsvFeatures, double pixelDiff, int startFrame, int endFrame) {

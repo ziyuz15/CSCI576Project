@@ -26,7 +26,7 @@ public class AudioProcess {
     private static final double ratio = 0.5;
     private static final int OVERLAP = 512; // overlap size of Fast Fourier Transform(FFT)
     private ArrayList<double[][]> magnitudeSpectrumList; // list of audio signatures
-    private static final int TOTAL_FILE_NUMS = 12; // num of all audio files
+    private static final int TOTAL_FILE_NUMS = 20; // num of all audio files
     private String filePath;
 
     public AudioProcess(String filePath) {
@@ -64,6 +64,45 @@ public class AudioProcess {
             throw new RuntimeException(e);
         }
     }
+    private void applyAutomaticGainControl(short[] audioData, double targetAmplitude) {
+        double max = 0.0;
+        for (short sample : audioData) {
+            max = Math.max(max, Math.abs(sample));
+        }
+
+        double gain = (targetAmplitude * Short.MAX_VALUE) / max;
+        for (int i = 0; i < audioData.length; i++) {
+            audioData[i] = (short) Math.min(Math.max(audioData[i] * gain, Short.MIN_VALUE), Short.MAX_VALUE);
+        }
+    }
+
+//    private short[] getSample(String querySamplePath) {
+//        try (AudioInputStream audioStream = AudioSystem.getAudioInputStream(new File(querySamplePath))) {
+//            ByteArrayOutputStream out = new ByteArrayOutputStream();
+//            byte[] buffer = new byte[1024];
+//            int read;
+//            while ((read = audioStream.read(buffer)) != -1) {
+//                out.write(buffer, 0, read);
+//            }
+//            byte[] audioBytes = out.toByteArray();
+//
+//            ShortBuffer shortBuffer = ByteBuffer.wrap(audioBytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer();
+//            short[] samples = new short[audioBytes.length / 2];
+//            shortBuffer.get(samples);
+//
+//            short[] samplesLeft = new short[samples.length / 2];
+//            for (int i = 0; i < samples.length / 2; i++) {
+//                samplesLeft[i] = samples[2 * i];
+//            }
+//
+//            // 应用自动增益控制
+//            applyAutomaticGainControl(samplesLeft, 0.8); // 假设目标振幅为0.5
+//
+//            return samplesLeft;
+//        } catch (UnsupportedAudioFileException | IOException e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
 
     /**
      * Function for detecting shot boundaries
@@ -314,9 +353,9 @@ public class AudioProcess {
         long endTime = System.currentTimeMillis();
         long executionDuration = endTime - startTime;
         System.out.println("Execution Duration: " + executionDuration);
-        System.out.println("Video " + finalVideo +  "; start time: " + minStart / 44100.0);
+        System.out.println("Video " + finalVideo +  "; start time: " + minStart / 48000.0);
 
-        playAudio((long) (minStart / 44100.0), filePath+"\\"+"Video"+finalVideo+".wav");
+        playAudio((long) (minStart / 48000.0), filePath+"\\"+"Video"+finalVideo+".wav");
     }
 
 

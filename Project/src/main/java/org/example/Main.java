@@ -12,14 +12,16 @@ public class Main {
 //        }
 
 //        videoProcessor.processVideo("D:\\USC\\CSCI576\\Videos\\video11.mp4");
+        int frameNum = videoProcessor.processVideo("D:\\USC\\CSCI576\\Videos\\video7.mp4",442.21866666666665,"D:\\USC\\CSCI576\\Queries\\video7_1.mp4");
 //        MotionProcessor.compareVideosShots("D:\\USC\\CSCI576\\Queries\\video2_1.mp4");
-        AudioProcess audioProcess = new AudioProcess("D:\\USC\\CSCI576\\Audios_Test\\");
-        audioProcess.processAudio("video13_2.wav");
+//        AudioProcess audioProcess = new AudioProcess("D:\\USC\\CSCI576\\Audios_Test\\");
+//        audioProcess.processAudio("video7_2.wav");
         long endTime = System.nanoTime();
         long duration = endTime - startTime;
 
 
         System.out.println("Running Time: " + duration + "ns / " + duration / 1_000_000_000.0 + "s");
+        System.out.println("Find Frame Number: " + frameNum);
     }
 //    public static void main(String[] args) {
 ////        AudioProcess myAudio = new AudioProcess("/Users/ziyuzhao/Desktop/CSCI 576/project/CSCI576Project/Project/src/main/java/org/example/");

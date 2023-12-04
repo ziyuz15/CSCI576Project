@@ -64,6 +64,59 @@ public class VideoProcessor {
 
         return rgb;
     }
+    public static int processVideo(String path, double time, String queryPath){
+        int exactFrame = 0;
+        try (FFmpegFrameGrabber frameGrabber = new FFmpegFrameGrabber(path)) {
+            frameGrabber.start();
+            FFmpegFrameGrabber frameGrabber2 = new FFmpegFrameGrabber(queryPath);
+            frameGrabber2.start();
+
+            Java2DFrameConverter converter = new Java2DFrameConverter();
+            Java2DFrameConverter converter2 = new Java2DFrameConverter();
+            Frame queryFrame = frameGrabber2.grabImage();
+            Frame videoFrame;
+            BufferedImage queryImage = converter2.getBufferedImage(queryFrame);
+            BufferedImage videoImage;
+            String wavPath = path.replaceAll("\\.mp4$", "");
+            String fileName = path.substring(path.lastIndexOf("\\") + 1).replaceAll("\\.mp4$", "");
+
+            ShortBuffer audioSamplesBuffer = ShortBuffer.allocate(1024 * 1024);
+            double[][] signature;
+            double minDistance = 100;
+
+            int frameNum = ShotBoundaryDetails.convertTimeToFrameNum(30,time);
+            System.out.println(frameNum);
+            frameGrabber.setVideoFrameNumber(frameNum);
+            videoFrame = frameGrabber.grab();
+            videoImage = converter.getBufferedImage(videoFrame);
+            System.out.println(ShotBoundaryDetails.pixelxDiff(queryImage,videoImage));
+            if(ShotBoundaryDetails.pixelxDiff(queryImage,videoImage) < 0.01){
+                System.out.println("find frames: " + frameNum);
+                return frameNum;
+            }
+            frameGrabber.setVideoFrameNumber(frameNum - 30);
+            videoFrame = frameGrabber.grab();
+            videoImage = converter.getBufferedImage(videoFrame);
+            for(int i = frameNum - 10; i <= frameNum + 10; i++){
+                if(videoImage != null && queryImage != null){
+//                    double tmp = ShotBoundaryDetails.combinedDiff(queryImage, videoImage, 0.3, 0.7);
+                    double tmp = ShotBoundaryDetails.pixelxDiff(queryImage,videoImage);
+                    if(tmp < minDistance){
+                        exactFrame = i;
+                        minDistance = tmp;
+                    }
+                }
+                videoFrame = frameGrabber.grab();
+                videoImage = converter.getBufferedImage(videoFrame);
+            }
+            frameGrabber.stop();
+            frameGrabber2.stop();
+            frameGrabber2.release();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return exactFrame;
+    }
     /**
      * The function is used for extraing and excuting the processing the frames of Video and Audio from MP4 files.
      * @param path
