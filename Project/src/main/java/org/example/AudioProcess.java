@@ -319,8 +319,9 @@ public class AudioProcess {
      * iterate through ALL audio signatures, to match the query sample with all files in dataset
      * @param querySample the given query sample
      */
-    private void matchAudio(short[] querySample){
+    private double[] matchAudio(short[] querySample){
         long startTime = System.currentTimeMillis();
+        double[] returnArray = new double[2];
 
         double[][] firstMagnitudeArray = new double[1][512];
         getMagnitude(querySample, 0, firstMagnitudeArray);
@@ -353,9 +354,18 @@ public class AudioProcess {
         long endTime = System.currentTimeMillis();
         long executionDuration = endTime - startTime;
         System.out.println("Execution Duration: " + executionDuration);
+<<<<<<< HEAD
         System.out.println("Video " + finalVideo +  "; start time: " + minStart / 48000.0);
 
         playAudio((long) (minStart / 48000.0), filePath+"\\"+"Video"+finalVideo+".wav");
+=======
+        System.out.println("Video " + finalVideo +  "; start time: " + minStart / 44100.0);
+        returnArray[0] = finalVideo;
+        returnArray[1] = startTime;
+
+        playAudio((long) (minStart / 44100.0), filePath+"\\"+"Video"+finalVideo+".wav");
+        return  returnArray;
+>>>>>>> 24541f64053c7ba8f9c002556c5175902ee99cac
     }
 
 
@@ -528,15 +538,19 @@ public class AudioProcess {
 
     /**
      * process query audio
+     *
      * @param queryAudioFileName is the name of query audio file, which must be at the filePath
+     * @return
      */
-    public void processAudio(String queryAudioFileName){
+    public double[] processAudio(String queryAudioFileName){
+        double[] indexAndStartTime = new double[2];
         short[] sampleLeft = getSample(filePath + queryAudioFileName);
         magnitudeSpectrumList = new ArrayList<>();
         createAudioSignature();
-        matchAudio(sampleLeft);
-
+        indexAndStartTime = matchAudio(sampleLeft);
+        return indexAndStartTime;
     }
+
     private static double[][] readCsvFile(String filePath) throws IOException {
         List<double[]> data = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
