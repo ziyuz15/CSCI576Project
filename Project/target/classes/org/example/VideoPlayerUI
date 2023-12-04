@@ -1,0 +1,95 @@
+import org.bytedeco.javacv.FFmpegFrameGrabber;
+import org.bytedeco.javacv.Java2DFrameConverter;
+import org.bytedeco.javacv.Frame;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+
+public class VideoPlayerUI extends JFrame {
+   private JButton playButton;
+   private JButton pauseButton;
+   private JButton resetButton;
+   private JLabel displayLabel;
+   private Thread videoThread;
+   private FFmpegFrameGrabber frameGrabber;
+
+
+   public VideoPlayerUI(String matchedVideoPath, int matchedFrameIndex) {
+      playButton = new JButton("Play");
+      pauseButton = new JButton("Pause");
+      resetButton = new JButton("Reset");
+      displayLabel = new JLabel();
+
+      this.setLayout(new FlowLayout());
+      this.add(displayLabel);
+      this.add(playButton);
+      this.add(pauseButton);
+      this.add(resetButton);
+
+      this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+      this.setSize(640, 480);
+
+      playButton.addActionListener(e -> playVideoFromFrame(matchedVideoPath, matchedFrameIndex));
+      pauseButton.addActionListener(e -> pauseVideo());
+      resetButton.addActionListener(e -> resetVideo(matchedVideoPath));
+   }
+
+   public void playVideoFromFrame(String videoPath, int frameIndex) {
+      if (videoThread != null && videoThread.isAlive()) {
+         return; // すでに再生中の場合は何もしない
+      }
+
+      videoThread = new Thread(() -> {
+         try (
+               FFmpegFrameGrabber frameGrabber = new FFmpegFrameGrabber(videoPath)) {
+            frameGrabber.start();
+            frameGrabber.setFrameNumber(frameIndex);
+
+            // フレームレートを取得してコンソールに表示
+            double frameRate = frameGrabber.getFrameRate();
+            System.out.println("Frame Rate: " + frameRate);
+
+            Frame frame;
+            while ((frame = frameGrabber.grabFrame()) != null) {
+               BufferedImage image = new Java2DFrameConverter().convert(frame);
+               if (image != null) {
+                  long startTime = System.currentTimeMillis(); // 処理前の時刻
+
+                  ImageIcon icon = new ImageIcon(image);
+                  displayLabel.setIcon(icon);
+
+                  long endTime = System.currentTimeMillis(); // 処理後の時刻
+                  System.out.println("UI update time: " + (endTime - startTime) + " ms");
+
+               }
+               try {
+                  long sleepTime = (long) (1000 / frameGrabber.getFrameRate());
+                  System.out.println("SleepTime: "+sleepTime);
+                  Thread.sleep(sleepTime);
+               } catch (InterruptedException ex) {
+                  break;
+               }
+            }
+            frameGrabber.stop();
+         } catch (IOException ex) {
+            ex.printStackTrace();
+         }
+      });
+      videoThread.start();
+   }
+   private void pauseVideo() {
+      if (videoThread != null) {
+         videoThread.interrupt();
+      }
+   }
+
+   private void resetVideo(String videoPath) {
+      pauseVideo();
+      playVideoFromFrame(videoPath, 0);
+   }
+
+}
