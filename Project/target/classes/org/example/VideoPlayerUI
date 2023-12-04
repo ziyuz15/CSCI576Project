@@ -19,6 +19,7 @@ public class VideoPlayerUI extends JFrame {
    private FFmpegFrameGrabber frameGrabber;
    // オーディオ再生用の変数
    private SourceDataLine soundLine = null;
+   private static final int BUFFER_SIZE = 32768;//32kB
 
    public VideoPlayerUI(String matchedVideoPath, int matchedFrameIndex) {
       playButton = new JButton("Play");
@@ -83,7 +84,8 @@ public class VideoPlayerUI extends JFrame {
                try {
                   long sleepTime = (long) (1000 / frameGrabber.getFrameRate());
                   System.out.println("SleepTime: "+sleepTime);
-                  Thread.sleep(sleepTime);
+//                  Thread.sleep(sleepTime);
+                  Thread.sleep(3);
                } catch (InterruptedException ex) {
                   break;
                }
@@ -111,7 +113,7 @@ public class VideoPlayerUI extends JFrame {
          AudioFormat audioFormat = new AudioFormat(frameGrabber.getSampleRate(), 16, frameGrabber.getAudioChannels(), true, false);
          DataLine.Info info = new DataLine.Info(SourceDataLine.class, audioFormat);
          soundLine = (SourceDataLine) AudioSystem.getLine(info);
-         soundLine.open(audioFormat);
+         soundLine.open(audioFormat, BUFFER_SIZE);
          soundLine.start();
       } catch (LineUnavailableException e) {
          e.printStackTrace();
