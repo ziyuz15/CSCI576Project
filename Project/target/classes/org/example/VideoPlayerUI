@@ -17,9 +17,10 @@ public class VideoPlayerUI extends JFrame {
    private JLabel displayLabel;
    private Thread videoThread;
    private FFmpegFrameGrabber frameGrabber;
-   // オーディオ再生用の変数
+
    private SourceDataLine soundLine = null;
    private static final int BUFFER_SIZE = 32768;//32kB
+
 
    public VideoPlayerUI(String matchedVideoPath, int matchedFrameIndex) {
       playButton = new JButton("Play");
@@ -45,6 +46,7 @@ public class VideoPlayerUI extends JFrame {
       if (videoThread != null && videoThread.isAlive()) {
          return; // Do nothing if already playing
       }
+      playButton.setEnabled(false); // 追加:再生ボタンを無効化
 
       videoThread = new Thread(() -> {
          try (
@@ -94,6 +96,13 @@ public class VideoPlayerUI extends JFrame {
          } catch (IOException ex) {
             ex.printStackTrace();
          }
+
+         finally {
+            SwingUtilities.invokeLater(() -> {
+               playButton.setEnabled(true); // 再生ボタンを有効化
+            });
+         }
+
       });
       videoThread.start();
    }
