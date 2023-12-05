@@ -37,6 +37,7 @@ public class VideoProcessor {
     private static final int FRAME_SIZE = WIDTH * HEIGHT * 3; // 每帧的字节大小
     private static final int FRAME_RATE = 30;
 
+
     AudioProcess audioProcess = new AudioProcess("D:\\USC\\CSCI576\\Audios_Test\\");
     private static void createAndShowGUI() {
         // 创建 JFrame 实例
@@ -269,28 +270,26 @@ public class VideoProcessor {
             int frameNum = (int) (time * FRAME_RATE) - 1;
             System.out.println("frameNum: "+ (frameNum + 1));
             try (FileInputStream fis = new FileInputStream(path)) {
-                fis.skip((long) frameNum * FRAME_SIZE); // 跳转到指定帧的位置
+                fis.skip((long) frameNum * FRAME_SIZE);
 
                 byte[] frameBytes = new byte[FRAME_SIZE];
                 int bytesRead = fis.read(frameBytes);
                 System.out.println(bytesRead);
                 if (bytesRead == FRAME_SIZE) {
-                    // 将字节数据转换为 BufferedImage 或其他格式
-                    // 例如，调用之前定义的 convertToImage 方法
                     BufferedImage videoImage = convertToImage(ByteBuffer.wrap(frameBytes));
                     System.out.println("pixelDiff : "+ ShotBoundaryDetails.pixelxDiff(queryImage, videoImage));
-                    if(ShotBoundaryDetails.pixelxDiff(queryImage, videoImage) < 0.05){
-                        long endTime = System.nanoTime();
-                        System.out.println("Video Match time: " + (endTime - startTime) / 1_000_000_000.0 + "s");
-                        return frameNum + 1;
-                    }
+//                    if(ShotBoundaryDetails.pixelxDiff(queryImage, videoImage) < 0.05){
+//                        long endTime = System.nanoTime();
+//                        System.out.println("Video Match time: " + (endTime - startTime) / 1_000_000_000.0 + "s");
+//                        return frameNum + 1;
+//                    }
                 }
             } catch (IOException e) {
                 e.printStackTrace();
             }
 
-            int startFrame = Math.max(0, frameNum - 10); // 防止超出文件起始
-            int endFrame = frameNum + 10; // 可以添加逻辑以防止超出文件结束
+            int startFrame = Math.max(0, frameNum - 10);
+            int endFrame = frameNum + 10;
 
             // 遍历帧
             try (FileInputStream fis = new FileInputStream(path)) {
@@ -299,7 +298,7 @@ public class VideoProcessor {
                 for (int i = startFrame; i <= endFrame; i++) {
                     ByteBuffer buffer = ByteBuffer.allocate(FRAME_SIZE);
                     if (fis.read(buffer.array()) == -1) {
-                        break; // 文件结束
+                        break;
                     }
 
                     BufferedImage videoImage = convertToImage(buffer);
@@ -319,7 +318,7 @@ public class VideoProcessor {
 
         long endTime = System.nanoTime();
         System.out.println("Video Match time: " + (endTime - startTime) / 1_000_000_000.0 + "s");
-        return exactFrame + 1;
+        return exactFrame;
     }
 
     private static BufferedImage convertToImage(ByteBuffer buffer) {

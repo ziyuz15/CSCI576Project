@@ -1,6 +1,7 @@
 package org.example;
 
 
+import java.awt.*;
 import java.util.ArrayList;
 
 public class Main {
@@ -9,7 +10,7 @@ public class Main {
 
         long startTime = System.nanoTime();
 
-        String audioName = "video4_1.wav";
+        String audioName = "video6_1.wav";
         String videoName = audioName.replaceAll("\\.wav$", "");
 
         AudioProcess audioProcess = new AudioProcess("D:\\USC\\CSCI576\\Audios_Test\\");
@@ -29,6 +30,11 @@ public class Main {
         System.out.println(" ");
         System.out.println("----------------------------------");
         System.out.println("Find Frame Number: " + frameNum);
+
+        EventQueue.invokeLater(()->{
+            VideoPlayerUI playerUI = new VideoPlayerUI("D:\\USC\\CSCI576\\Videos\\video"+(int)result[0]+".mp4", frameNum, "D:\\USC\\CSCI576\\Audios_Test\\video"+(int)result[0]+".wav");
+            playerUI.setVisible(true);
+        });
     }
 //    public static void main(String[] args) {
 ////        AudioProcess myAudio = new AudioProcess("/Users/ziyuzhao/Desktop/CSCI 576/project/CSCI576Project/Project/src/main/java/org/example/");
