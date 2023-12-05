@@ -18,7 +18,7 @@ import static org.bytedeco.opencv.global.opencv_imgproc.*;
 import static org.bytedeco.opencv.global.opencv_core.*;
 
 public class ShotBoundaryDetails {
-    static final double threshold = 10;
+    static final double threshold = 20;
     public double averageH;
     public double averageS;
     public double averageV;
