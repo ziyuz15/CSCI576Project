@@ -31,7 +31,7 @@ public class AudioProcess {
     private ArrayList<double[][]> magnitudeSpectrumList; // list of audio signatures
     private static final int TOTAL_FILE_NUMS = 20; // num of all audio files
     private String filePath;
-    private float FRAME_RATE = 0.0f;
+    public float FRAME_RATE = 0.0f;
     private static final int FRAME_OFFSET = 16;
     private static final int FRACTION = 20;
 
@@ -73,7 +73,16 @@ public class AudioProcess {
             throw new RuntimeException(e);
         }
     }
-
+    public static long getFrameRate(String filePath){
+        long frameRate;
+        try (AudioInputStream audioStream = AudioSystem.getAudioInputStream(new File(filePath))) {
+            AudioFormat format = audioStream.getFormat();
+            frameRate = (long) format.getFrameRate();
+        }catch (UnsupportedAudioFileException | IOException e) {
+            throw new RuntimeException(e);
+        }
+        return frameRate;
+    }
     /**
      * Function for detecting shot boundaries
      * @param frame
@@ -406,11 +415,10 @@ public class AudioProcess {
      * @param startTime the starting time of the audio file, should be second(s)
      * @param filePath path of the audio file
      */
-    private void playAudio(long startTime, String filePath) {
+    public static void playAudio(long startTime, String filePath) {
         try {
             File audioFile = new File(filePath);
             AudioInputStream audioStream = AudioSystem.getAudioInputStream(audioFile);
-
             AudioFormat format = audioStream.getFormat();
             int frameSize = format.getFrameSize();
             long bytesPerSecond = (long) (format.getFrameSize() * format.getSampleRate());
