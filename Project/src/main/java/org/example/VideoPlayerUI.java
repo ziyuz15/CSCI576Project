@@ -6,6 +6,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -45,6 +47,20 @@ public class VideoPlayerUI extends JFrame {
         resetButton.addActionListener(e -> resetVideo(matchedVideoPath, matchedFrameIndex));
 //        videoStartTime = matchedFrameIndex / 30;
         initializePlayer(matchedVideoPath);
+        this.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                // 在窗口关闭时执行资源释放代码
+                try {
+                    if(frameGrabber.grab() != null){
+                        frameGrabber.stop();
+                        frameGrabber.release();
+                    }
+                } catch (FFmpegFrameGrabber.Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+        });
     }
     public void initializePlayer(String videoPath) {
         if (frameGrabber != null) {
@@ -82,7 +98,6 @@ public class VideoPlayerUI extends JFrame {
 //        } catch (IOException e) {
 //            e.printStackTrace();
 //        }
-        System.out.println("isPaused: "+ isPaused);
 
         videoThread = new Thread(() -> {
             try {
@@ -109,6 +124,7 @@ public class VideoPlayerUI extends JFrame {
                         break;
                     }
                     if (image != null) {
+
                         ImageIcon icon = new ImageIcon(image);
                         displayLabel.setIcon(icon);
                     }
@@ -121,8 +137,6 @@ public class VideoPlayerUI extends JFrame {
                         byte[] data = shortToByte(samples);
                         soundLine.write(data, 0, data.length);
                     }
-
-
 //                    try {
 //                        long sleepTime = (long) (1000 / frameGrabber.getFrameRate());
 ////                        System.out.println("SleepTime: "+sleepTime);
@@ -148,11 +162,34 @@ public class VideoPlayerUI extends JFrame {
         this.notifyAll();
     }
     private void resetVideo(String videoPath, int matchedFrameIndex) {
+//        stopVideo();
+//        if (videoThread != null) {
+//            Thread tempThread = videoThread; // 保存当前videoThread的引用
+//            videoThread.interrupt();
+//
+//            new Thread(() -> {
+//                try {
+//                    tempThread.join(); // 使用临时变量来调用join
+//                } catch (InterruptedException e) {
+//                    Thread.currentThread().interrupt();
+//                }
+//            }).start();
+//            videoThread = null;
+//        }
+//        if (soundLine != null) {
+//            soundLine.drain();
+//            soundLine.stop();
+//            soundLine.close();
+//            soundLine = null;
+//        }
         pauseVideo();
-        stopVideo();
 //        initializePlayer(videoPath);
         resumeVideo();
+        try {
+            frameGrabber.setVideoFrameNumber(0);
+        }catch (Exception e){
 
+        }
         playVideoFromFrame(videoPath, matchedFrameIndex);
     }
     private void stopVideo() {
