@@ -22,9 +22,10 @@ public class VideoPlayerUI extends JFrame {
     private JLabel displayLabel;
     private Thread videoThread;
     private FFmpegFrameGrabber frameGrabber;
+    private FFmpegFrameGrabber audioGrabber;
     // オーディオ再生用の変数
     private SourceDataLine soundLine = null;
-    private static final int BUFFER_SIZE = 10000;//32kB
+    private static final int BUFFER_SIZE = 62768;//32kB
     private volatile boolean isPaused = false;
     private long videoStartTime = 0;
     private String matchedAudioPath;
@@ -34,13 +35,13 @@ public class VideoPlayerUI extends JFrame {
         pauseButton = new JButton("Pause");
         resetButton = new JButton("Reset");
         displayLabel = new JLabel();
-
+        displayLabel.setSize(352,288);
         this.setLayout(new FlowLayout());
         this.add(displayLabel);
         this.add(playButton);
         this.add(pauseButton);
         this.add(resetButton);
-
+ 
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         this.setSize(640, 480);
 
@@ -75,9 +76,10 @@ public class VideoPlayerUI extends JFrame {
         }
 
         frameGrabber = new FFmpegFrameGrabber(videoPath);
+        audioGrabber = new FFmpegFrameGrabber(videoPath);
         try {
             frameGrabber.start();
-
+            audioGrabber.start();
             initAudio(frameGrabber); // 初始化音频
         } catch (IOException e) {
             e.printStackTrace();
@@ -111,14 +113,14 @@ public class VideoPlayerUI extends JFrame {
             try {
                 long lastTimestamp = 0;
                 frameGrabber.setFrameNumber(frameIndex);
+                audioGrabber.setFrameNumber(frameIndex);
                 videoStartTime = System.currentTimeMillis();
                 Frame frame;
-//                if (!frameGrabber.isStarted()) {
-//                    frameGrabber.start(); // 确保已经调用 start()
-//                }
-                long frameTime = (long)( 1000 / frameGrabber.getFrameRate()); // 每帧应该展示的时间（毫秒）
-                long frameStartTime = System.currentTimeMillis();
+                Frame audioFrame;
+
                 while ((frame = frameGrabber.grabFrame()) != null) {
+                    long frameStartTime = System.currentTimeMillis();
+                    audioFrame = audioGrabber.grabFrame();
                     synchronized (this){
                         while (isPaused){
                             try {
@@ -145,37 +147,36 @@ public class VideoPlayerUI extends JFrame {
                         SwingUtilities.invokeLater(() -> displayLabel.setIcon(icon));
                     }
                     // Process audio frame
-                    if (frame.samples != null) {
-                        ShortBuffer channelSamplesShortBuffer = (ShortBuffer) frame.samples[0];
+                    if (audioFrame.samples != null) {
+                        ShortBuffer channelSamplesShortBuffer = (ShortBuffer) audioFrame.samples[0];
                         short[] samples = new short[channelSamplesShortBuffer.capacity()];
                         channelSamplesShortBuffer.get(samples);
                         byte[] data = shortToByte(samples);
-                        soundLine.write(data, 0, data.length);
+                        soundLine.write(data, 16, data.length - 16);
                     }
                     long frameEndTime = System.currentTimeMillis();
-                    long timeTaken = frameEndTime - frameStartTime;
-                    long sleepTime = frameTime - timeTaken;
-
-//                    if (sleepTime > 0) {
-//                        System.out.println(sleepTime);
-//                        try {
-//                            Thread.sleep(sleepTime);
-//                        } catch (InterruptedException e) {
-//                            Thread.currentThread().interrupt();
-//                            return;
-//                        }
-//                    }
-                    try {
-//                        long sleepTime = (long) (1000 / frameGrabber.getFrameRate());
-////                        System.out.println("SleepTime: "+sleepTime);
-//                        Thread.sleep(sleepTime);
-                        Thread.sleep((long) 3.33);
-                    } catch (InterruptedException ex) {
-                        break;
-                    }
+                    long sleepTime = frameEndTime - frameStartTime;
+                //    if (sleepTime > 0) {
+                //        try {
+                //            Thread.sleep(sleepTime);
+                //        } catch (InterruptedException e) {
+                //            Thread.currentThread().interrupt();
+                //            return;
+                //        }
+                //    }
+//                     try {
+// //                        long sleepTime = (long) (1000 / frameGrabber.getFrameRate());
+// ////                        System.out.println("SleepTime: "+sleepTime);
+// //                        Thread.sleep(sleepTime);
+//                         Thread.sleep((long) 3.33);
+//                     } catch (InterruptedException ex) {
+//                         break;
+//                     }
 
                 }
                 frameGrabber.stop();
+                audioGrabber.stop();
+                audioGrabber.release();
             } catch (IOException ex) {
                 ex.printStackTrace();
             }
@@ -215,7 +216,8 @@ public class VideoPlayerUI extends JFrame {
 //        initializePlayer(videoPath);
         resumeVideo();
         try {
-            frameGrabber.setVideoFrameNumber(0);
+            frameGrabber.setFrameNumber(matchedFrameIndex);
+            audioGrabber.setFrameNumber(matchedFrameIndex);
         }catch (Exception e){
 
         }
