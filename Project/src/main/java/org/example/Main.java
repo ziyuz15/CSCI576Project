@@ -9,8 +9,7 @@ public class Main {
         VideoProcessor videoProcessor = new VideoProcessor();
 
         long startTime = System.nanoTime();
-
-        String audioName = "video6_1.wav";
+        String audioName = args[1];
         String videoName = audioName.replaceAll("\\.wav$", "");
 
         AudioProcess audioProcess = new AudioProcess("D:\\USC\\CSCI576\\Audios_Test\\");
