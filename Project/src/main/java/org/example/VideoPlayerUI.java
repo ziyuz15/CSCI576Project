@@ -207,7 +207,9 @@ public class VideoPlayerUI extends JFrame {
                             }
                         }
                     }
-
+                    if(frameGrabber == null){
+                        frameGrabber.start();
+                    }
                     videoFrame = frameGrabber.grabFrame();
                     if (videoFrame == null) break;
                     videoTimestamp = frameGrabber.getTimestamp();
@@ -251,6 +253,15 @@ public class VideoPlayerUI extends JFrame {
         this.notifyAll();
     }
     private void resetVideo(String videoPath, int matchedFrameIndex) {
+        if (videoThread != null && videoThread.isAlive()) {
+            pauseVideo();
+            // 等待一小段时间以确保暂停操作生效
+            try {
+                Thread.sleep(100);  // 等待100毫秒
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
         stopVideo();
         // pauseVideo();
         initializePlayer(videoPath);
