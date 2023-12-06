@@ -14,6 +14,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ShortBuffer;
 import javax.sound.sampled.*;
+import org.bytedeco.ffmpeg.global.avutil;
 
 public class VideoPlayerUI extends JFrame {
     private JButton playButton;
@@ -25,7 +26,7 @@ public class VideoPlayerUI extends JFrame {
     private FFmpegFrameGrabber audioGrabber;
     // オーディオ再生用の変数
     private SourceDataLine soundLine = null;
-    private static final int BUFFER_SIZE = 62768;//32kB
+    private static final int BUFFER_SIZE = 19200;//32kB
     private volatile boolean isPaused = false;
     private long videoStartTime = 0;
     private String matchedAudioPath;
@@ -67,6 +68,7 @@ public class VideoPlayerUI extends JFrame {
         });
     }
     public void initializePlayer(String videoPath) {
+        avutil.av_log_set_level(avutil.AV_LOG_QUIET); 
         if (frameGrabber != null) {
             try {
                 frameGrabber.release(); // 释放之前的资源
@@ -109,71 +111,127 @@ public class VideoPlayerUI extends JFrame {
 
         });
         audioThread.start();
+//         videoThread = new Thread(() -> {
+//             try {
+//                 long lastTimestamp = 0;
+//                 frameGrabber.setFrameNumber(frameIndex);
+//                 audioGrabber.setFrameNumber(frameIndex);
+//                 videoStartTime = System.currentTimeMillis();
+//                 Frame frame;
+//                 Frame audioFrame;
+
+//                 while ((frame = frameGrabber.grabFrame()) != null) {
+//                     long frameStartTime = System.currentTimeMillis();
+//                     audioFrame = audioGrabber.grabFrame();
+//                     synchronized (this){
+//                         while (isPaused){
+//                             try {
+//                                 this.wait();
+//                             }catch (InterruptedException e){
+//                                 Thread.currentThread().interrupt();
+//                                 return;
+//                             }
+//                         }
+//                     }
+// //                    int i = frameGrabber.getFrameNumber();
+// //                    if(i < 10 || i >= 0){
+// //                        System.out.println("current frame: " + i);
+// //                    }
+//                     long videoTimestamp = frameGrabber.getTimestamp();
+//                     long audioTimestamp = audioGrabber.getTimestamp();
+//                     BufferedImage image = new Java2DFrameConverter().convert(frame);
+//                     if(Thread.interrupted()){
+//                         break;
+//                     }
+//                     if (image != null) {
+
+//                         ImageIcon icon = new ImageIcon(image);
+// //                        displayLabel.setIcon(icon);
+//                         SwingUtilities.invokeLater(() -> displayLabel.setIcon(icon));
+//                     }
+//                     // Process audio frame
+//                     if (audioFrame.samples != null) {
+//                         ShortBuffer channelSamplesShortBuffer = (ShortBuffer) audioFrame.samples[0];
+//                         short[] samples = new short[channelSamplesShortBuffer.capacity()];
+//                         channelSamplesShortBuffer.get(samples);
+//                         byte[] data = shortToByte(samples);
+//                         soundLine.write(data, 0, data.length);
+//                     }
+//                     long frameEndTime = System.currentTimeMillis();
+//                     long sleepTime = frameEndTime - frameStartTime;
+//                 //    if (sleepTime > 0) {
+//                 //        try {
+//                 //            Thread.sleep(sleepTime);
+//                 //        } catch (InterruptedException e) {
+//                 //            Thread.currentThread().interrupt();
+//                 //            return;
+//                 //        }
+//                 //    }
+// //                     try {
+// // //                        long sleepTime = (long) (1000 / frameGrabber.getFrameRate());
+// // ////                        System.out.println("SleepTime: "+sleepTime);
+// // //                        Thread.sleep(sleepTime);
+// //                         Thread.sleep((long) 3.33);
+// //                     } catch (InterruptedException ex) {
+// //                         break;
+// //                     }
+
+//                 }
+//                 frameGrabber.stop();
+//                 audioGrabber.stop();
+//                 audioGrabber.release();
+//             } catch (IOException ex) {
+//                 ex.printStackTrace();
+//             }
+//         });
+//         videoThread.start();
         videoThread = new Thread(() -> {
             try {
-                long lastTimestamp = 0;
                 frameGrabber.setFrameNumber(frameIndex);
                 audioGrabber.setFrameNumber(frameIndex);
-                videoStartTime = System.currentTimeMillis();
-                Frame frame;
-                Frame audioFrame;
 
-                while ((frame = frameGrabber.grabFrame()) != null) {
-                    long frameStartTime = System.currentTimeMillis();
-                    audioFrame = audioGrabber.grabFrame();
-                    synchronized (this){
-                        while (isPaused){
+                Frame videoFrame;
+                Frame audioFrame = null;
+
+                long audioTimestamp = 0;
+                long videoTimestamp = 0;
+
+                while (true) {
+                    synchronized (this) {
+                        while (isPaused) {
                             try {
                                 this.wait();
-                            }catch (InterruptedException e){
+                            } catch (InterruptedException e) {
                                 Thread.currentThread().interrupt();
                                 return;
                             }
                         }
                     }
-//                    int i = frameGrabber.getFrameNumber();
-//                    if(i < 10 || i >= 0){
-//                        System.out.println("current frame: " + i);
-//                    }
 
-                    BufferedImage image = new Java2DFrameConverter().convert(frame);
-                    if(Thread.interrupted()){
-                        break;
-                    }
-                    if (image != null) {
+                    videoFrame = frameGrabber.grabFrame();
+                    if (videoFrame == null) break;
+                    videoTimestamp = frameGrabber.getTimestamp();
 
-                        ImageIcon icon = new ImageIcon(image);
-//                        displayLabel.setIcon(icon);
-                        SwingUtilities.invokeLater(() -> displayLabel.setIcon(icon));
+                    BufferedImage image = new Java2DFrameConverter().convert(videoFrame);
+                    if(image != null){
+                        SwingUtilities.invokeLater(() -> displayLabel.setIcon(new ImageIcon(image)));
                     }
-                    // Process audio frame
-                    if (audioFrame.samples != null) {
-                        ShortBuffer channelSamplesShortBuffer = (ShortBuffer) audioFrame.samples[0];
-                        short[] samples = new short[channelSamplesShortBuffer.capacity()];
-                        channelSamplesShortBuffer.get(samples);
-                        byte[] data = shortToByte(samples);
-                        soundLine.write(data, 16, data.length - 16);
-                    }
-                    long frameEndTime = System.currentTimeMillis();
-                    long sleepTime = frameEndTime - frameStartTime;
-                //    if (sleepTime > 0) {
-                //        try {
-                //            Thread.sleep(sleepTime);
-                //        } catch (InterruptedException e) {
-                //            Thread.currentThread().interrupt();
-                //            return;
-                //        }
-                //    }
-//                     try {
-// //                        long sleepTime = (long) (1000 / frameGrabber.getFrameRate());
-// ////                        System.out.println("SleepTime: "+sleepTime);
-// //                        Thread.sleep(sleepTime);
-//                         Thread.sleep((long) 3.33);
-//                     } catch (InterruptedException ex) {
-//                         break;
-//                     }
+      
+                    while (audioTimestamp == videoTimestamp || (audioTimestamp - videoTimestamp) < 100) {
+                        audioFrame = audioGrabber.grabFrame();
+                        if (audioFrame == null) break;
+                        audioTimestamp = audioGrabber.getTimestamp();
 
+                        if (audioFrame.samples != null) {
+                            ShortBuffer channelSamplesShortBuffer = (ShortBuffer) audioFrame.samples[0];
+                            short[] samples = new short[channelSamplesShortBuffer.capacity()];
+                            channelSamplesShortBuffer.get(samples);
+                            byte[] data = shortToByte(samples);
+                            soundLine.write(data, 0, data.length);
+                        }
+                    }
                 }
+
                 frameGrabber.stop();
                 audioGrabber.stop();
                 audioGrabber.release();
@@ -182,6 +240,7 @@ public class VideoPlayerUI extends JFrame {
             }
         });
         videoThread.start();
+
     }
 
     private void pauseVideo() {
@@ -192,49 +251,21 @@ public class VideoPlayerUI extends JFrame {
         this.notifyAll();
     }
     private void resetVideo(String videoPath, int matchedFrameIndex) {
-//        stopVideo();
-//        if (videoThread != null) {
-//            Thread tempThread = videoThread; // 保存当前videoThread的引用
-//            videoThread.interrupt();
-//
-//            new Thread(() -> {
-//                try {
-//                    tempThread.join(); // 使用临时变量来调用join
-//                } catch (InterruptedException e) {
-//                    Thread.currentThread().interrupt();
-//                }
-//            }).start();
-//            videoThread = null;
-//        }
-//        if (soundLine != null) {
-//            soundLine.drain();
-//            soundLine.stop();
-//            soundLine.close();
-//            soundLine = null;
-//        }
-        pauseVideo();
-//        initializePlayer(videoPath);
-        resumeVideo();
-        try {
-            frameGrabber.setFrameNumber(matchedFrameIndex);
-            audioGrabber.setFrameNumber(matchedFrameIndex);
-        }catch (Exception e){
+        stopVideo();
+        // pauseVideo();
+        initializePlayer(videoPath);
+        // resumeVideo();
+        // try {
+        //     frameGrabber.setFrameNumber(matchedFrameIndex);
+        //     audioGrabber.setFrameNumber(matchedFrameIndex);
+        // }catch (Exception e){
 
-        }
+        // }
         playVideoFromFrame(videoPath, matchedFrameIndex);
     }
     private void stopVideo() {
-        if (videoThread != null) {
-            Thread tempThread = videoThread; // 保存当前videoThread的引用
+        if (videoThread != null && videoThread.isAlive()) {
             videoThread.interrupt();
-
-            new Thread(() -> {
-                try {
-                    tempThread.join(); // 使用临时变量来调用join
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }).start();
             videoThread = null;
         }
         if (frameGrabber != null) {
@@ -244,7 +275,16 @@ public class VideoPlayerUI extends JFrame {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-//            frameGrabber = null;
+            frameGrabber = null;
+        }
+        if (audioGrabber != null) {
+            try {
+                audioGrabber.stop();
+                audioGrabber.release(); // 释放资源
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            audioGrabber = null;
         }
         if (soundLine != null) {
             soundLine.drain();

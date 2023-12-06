@@ -1,8 +1,8 @@
 package org.example;
 
-import org.bytedeco.javacv.Frame;
+import org.bytedeco.javacv.*;
 import org.jtransforms.fft.*;
-
+import org.jtransforms.fft.DoubleFFT_1D;
 import javax.sound.sampled.*;
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -575,54 +575,54 @@ public class AudioProcess {
      * @param fileIndex the index of the file to be loaded
      * @return loaded signature data
      */
-//    private double[][] loadSignature(int fileIndex){
-//        String curFilePath = filePath + "AudioSignature" + fileIndex +".csv";
-//        List<double[]> dataList = new ArrayList<>();
-//
-//        try (BufferedReader reader = new BufferedReader(new FileReader(curFilePath))) {
-//            String line;
-//            while ((line = reader.readLine()) != null) {
-//                String[] stringValues = line.split(",");
-//                double[] doubleValues = new double[stringValues.length];
-//                for (int i = 0; i < stringValues.length; i++) {
-//                    doubleValues[i] = Double.parseDouble(stringValues[i]);
-//                }
-//                dataList.add(doubleValues);
-//            }
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//
-//        double[][] signatureData = new double[dataList.size()][512];
-//
-//        signatureData = dataList.toArray(signatureData);
-//        return signatureData;
-//    }
-    private double[][] loadSignature(int fileIndex) {
-        String selectQuery = "SELECT magnitude FROM audio_signatures WHERE file_index = ?";
-        List<double[]> dataList = new ArrayList<>();
+   private double[][] loadSignature(int fileIndex){
+       String curFilePath = filePath + "AudioSignature" + fileIndex +".csv";
+       List<double[]> dataList = new ArrayList<>();
 
-        try (Connection conn = DatabaseConnector.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(selectQuery)) {
+       try (BufferedReader reader = new BufferedReader(new FileReader(curFilePath))) {
+           String line;
+           while ((line = reader.readLine()) != null) {
+               String[] stringValues = line.split(",");
+               double[] doubleValues = new double[stringValues.length];
+               for (int i = 0; i < stringValues.length; i++) {
+                   doubleValues[i] = Double.parseDouble(stringValues[i]);
+               }
+               dataList.add(doubleValues);
+           }
+       } catch (IOException e) {
+           e.printStackTrace();
+       }
 
-            stmt.setInt(1, fileIndex);
-            ResultSet rs = stmt.executeQuery();
+       double[][] signatureData = new double[dataList.size()][512];
 
-            while (rs.next()) {
-                String[] stringValues = rs.getString("magnitude").replaceAll("[\\[\\]]", "").split(",");
-                double[] doubleValues = new double[stringValues.length];
-                for (int i = 0; i < stringValues.length; i++) {
-                    doubleValues[i] = Double.parseDouble(stringValues[i].trim());
-                }
-                dataList.add(doubleValues);
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+       signatureData = dataList.toArray(signatureData);
+       return signatureData;
+   }
+    // private double[][] loadSignature(int fileIndex) {
+    //     String selectQuery = "SELECT magnitude FROM audio_signatures WHERE file_index = ?";
+    //     List<double[]> dataList = new ArrayList<>();
 
-        double[][] signatureData = new double[dataList.size()][];
-        return dataList.toArray(signatureData);
-    }
+    //     try (Connection conn = DatabaseConnector.getConnection();
+    //          PreparedStatement stmt = conn.prepareStatement(selectQuery)) {
+
+    //         stmt.setInt(1, fileIndex);
+    //         ResultSet rs = stmt.executeQuery();
+
+    //         while (rs.next()) {
+    //             String[] stringValues = rs.getString("magnitude").replaceAll("[\\[\\]]", "").split(",");
+    //             double[] doubleValues = new double[stringValues.length];
+    //             for (int i = 0; i < stringValues.length; i++) {
+    //                 doubleValues[i] = Double.parseDouble(stringValues[i].trim());
+    //             }
+    //             dataList.add(doubleValues);
+    //         }
+    //     } catch (SQLException e) {
+    //         e.printStackTrace();
+    //     }
+
+    //     double[][] signatureData = new double[dataList.size()][];
+    //     return dataList.toArray(signatureData);
+    // }
     private void loadSignature(){
         long loadingStartTime = System.currentTimeMillis();
         System.out.println("Audio Signature Loading... ");

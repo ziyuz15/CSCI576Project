@@ -11,8 +11,7 @@ import java.nio.ByteBuffer;
 import java.nio.ShortBuffer;
 import java.util.*;
 
-
-
+import org.bytedeco.ffmpeg.avutil.tm;
 import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.bytedeco.javacv.Java2DFrameConverter;
 import org.bytedeco.javacv.Frame;
@@ -256,7 +255,7 @@ public class VideoProcessor {
         long startTime = System.nanoTime();
         int exactFrame = 0;
         double minDistance = Double.MAX_VALUE;
-
+        double tmp = 1;
         try {
             ByteBuffer queryBuffer = ByteBuffer.allocate(FRAME_SIZE);
 
@@ -268,7 +267,7 @@ public class VideoProcessor {
 
             // 计算目标帧数
             int frameNum = (int) (time * FRAME_RATE) - 1;
-            System.out.println("frameNum: "+ (frameNum + 1));
+            // System.out.println("frameNum: "+ (frameNum + 1));
             try (FileInputStream fis = new FileInputStream(path)) {
                 fis.skip((long) frameNum * FRAME_SIZE);
 
@@ -278,19 +277,19 @@ public class VideoProcessor {
                 if (bytesRead == FRAME_SIZE) {
                     BufferedImage videoImage = convertToImage(ByteBuffer.wrap(frameBytes));
                     System.out.println("pixelDiff : "+ ShotBoundaryDetails.pixelxDiff(queryImage, videoImage));
-//                    if(ShotBoundaryDetails.pixelxDiff(queryImage, videoImage) < 0.05){
-//                        long endTime = System.nanoTime();
-//                        System.out.println("Video Match time: " + (endTime - startTime) / 1_000_000_000.0 + "s");
-//                        return frameNum + 1;
-//                    }
+                   if(ShotBoundaryDetails.pixelxDiff(queryImage, videoImage) < 0.05){
+                       long endTime = System.nanoTime();
+                       System.out.println("Video Match time: " + (endTime - startTime) / 1_000_000_000.0 + "s");
+                       return frameNum + 1;
+                   }
                 }
             } catch (IOException e) {
                 e.printStackTrace();
             }
 
-            int startFrame = Math.max(0, frameNum - 10);
-            int endFrame = frameNum + 10;
-
+            int startFrame = Math.max(0, frameNum - 50);
+            int endFrame = frameNum + 50;
+            
             // 遍历帧
             try (FileInputStream fis = new FileInputStream(path)) {
                 fis.skip((long) startFrame * FRAME_SIZE);
@@ -304,7 +303,7 @@ public class VideoProcessor {
                     BufferedImage videoImage = convertToImage(buffer);
 
                     if (videoImage != null && queryImage != null) {
-                        double tmp = ShotBoundaryDetails.pixelxDiff(queryImage, videoImage);
+                        tmp = ShotBoundaryDetails.pixelxDiff(queryImage, videoImage);
                         if (tmp < minDistance) {
                             exactFrame = i;
                             minDistance = tmp;
@@ -312,10 +311,73 @@ public class VideoProcessor {
                     }
                 }
             }
+            if(tmp > 0){
+                startFrame = Math.max(0, frameNum - 2401);
+                endFrame = frameNum;
+            
+                // 遍历帧
+                try (FileInputStream fis = new FileInputStream(path)) {
+                    fis.skip((long) startFrame * FRAME_SIZE);
+
+                    for (int i = startFrame; i <= endFrame; i++) {
+                        ByteBuffer buffer = ByteBuffer.allocate(FRAME_SIZE);
+                        if (fis.read(buffer.array()) == -1) {
+                            break;
+                        }
+
+                        BufferedImage videoImage = convertToImage(buffer);
+
+                        if (videoImage != null && queryImage != null) {
+                            tmp = ShotBoundaryDetails.pixelxDiff(queryImage, videoImage);
+                            if (tmp < minDistance) {
+                                exactFrame = i;
+                                minDistance = tmp;
+                            }
+                            if(tmp == 0){
+                                long endTime = System.nanoTime();
+                                System.out.println("Video Match time: " + (endTime - startTime) / 1_000_000_000.0 + "s");
+                                return exactFrame;
+                            }
+                        }
+                    }
+                }
+                if(tmp > 0){
+                    startFrame = Math.max(0, frameNum);
+                    endFrame = frameNum + 2041;
+                
+                    // 遍历帧
+                    try (FileInputStream fis = new FileInputStream(path)) {
+                        fis.skip((long) startFrame * FRAME_SIZE);
+
+                        for (int i = startFrame; i <= endFrame; i++) {
+                            ByteBuffer buffer = ByteBuffer.allocate(FRAME_SIZE);
+                            if (fis.read(buffer.array()) == -1) {
+                                break;
+                            }
+
+                            BufferedImage videoImage = convertToImage(buffer);
+
+                            if (videoImage != null && queryImage != null) {
+                                tmp = ShotBoundaryDetails.pixelxDiff(queryImage, videoImage);
+                                if (tmp < minDistance) {
+                                    exactFrame = i;
+                                    minDistance = tmp;
+                                }
+                                if(tmp == 0){
+                                    long endTime = System.nanoTime();
+                                    System.out.println("Video Match time: " + (endTime - startTime) / 1_000_000_000.0 + "s");
+                                    return exactFrame;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
         } catch (IOException e) {
             e.printStackTrace();
         }
-
+        System.out.println("final difference: " + tmp);
         long endTime = System.nanoTime();
         System.out.println("Video Match time: " + (endTime - startTime) / 1_000_000_000.0 + "s");
         return exactFrame;
