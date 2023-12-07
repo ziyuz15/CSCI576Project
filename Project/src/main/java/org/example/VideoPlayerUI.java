@@ -105,12 +105,12 @@ public class VideoPlayerUI extends JFrame {
 //        } catch (IOException e) {
 //            e.printStackTrace();
 //        }
-        Thread audioThread = new Thread(() ->{
-            int sampleIndex = (int)((frameIndex / frameGrabber.getVideoFrameRate()) * frameGrabber.getAudioFrameRate());
-            AudioProcess.playAudio(sampleIndex, matchedAudioPath);
+        // Thread audioThread = new Thread(() ->{
+        //     int sampleIndex = (int)((frameIndex / frameGrabber.getVideoFrameRate()) * frameGrabber.getAudioFrameRate());
+        //     AudioProcess.playAudio(sampleIndex, matchedAudioPath);
 
-        });
-        audioThread.start();
+        // });
+        // audioThread.start();
 //         videoThread = new Thread(() -> {
 //             try {
 //                 long lastTimestamp = 0;
